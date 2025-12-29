@@ -152,7 +152,7 @@ const INITIAL_PERSONNEL_LIST = [
     { id: 'p4', name: 'Fatma Öztürk', job: 'Şoför' },
 ];
 const AIRCRAFT_TYPES = [
-    'MI-8', 'T-70', 'KA-32', 'CH-47', 'CH-47 ER', 'AT-802F', 'S-64',
+    'MI-8', 'T-70', 'S-70', 'KA-32', 'CH-47', 'CH-47 ER', 'AT-802F', 'S-64',
     'AS350', 'AN-32P', 'AW119', 'AS-532', 'Be-200', 'Bell-429', 'Citation', 'B-360'
 ];
 const INITIAL_AIRPORT_LIST = [
@@ -436,7 +436,7 @@ const RedirectingOverlay = ({ isVisible, isFadingOut }) => {
     return (
         React.createElement("div", { className: `fixed inset-0 bg-white flex flex-col justify-center items-center z-50 text-center ${animationClass}` },
             React.createElement("img", {
-                src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExb3E3cXhjcDJibHQ2YTJiOTh0dTg3azF2M210MjJsdXVrYTJpdmE0dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/1rrxPs1nb3IjwmbiXw/giphy.gif",
+                src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/1rrxPs1nb3IjwmbiXw/giphy.gif",
                 alt: "Helikopter Logo",
                 className: "h-48 w-48 rounded-full object-cover mb-8"
             }),
@@ -1687,12 +1687,16 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
     };
 
     const renderChanges = (original, changes) => {
+        // Obje kontrolü: Görseldeki 0: { 1: " hatasını önlemek için gelen verinin obje olduğundan emin oluyoruz.
+        const originalObj = typeof original === 'string' ? JSON.parse(original) : original;
+        const changesObj = typeof changes === 'string' ? JSON.parse(changes) : changes;
+
         return (
             React.createElement("div", { className: "grid grid-cols-1 gap-y-2 text-sm" },
-                Object.keys(changes).map(key => {
+                Object.keys(changesObj).map(key => {
                     const translatedKey = FIELD_TRANSLATIONS[key] || key;
-                    const originalValue = key === 'date' && original.date ? formatDisplayDateOnly(original.date) : String(original[key] ?? '-');
-                    const changedValue = key === 'date' && changes.date ? formatDisplayDateOnly(changes.date) : String(changes[key] ?? '-');
+                    const originalValue = key === 'date' && originalObj.date ? formatDisplayDateOnly(originalObj.date) : String(originalObj[key] ?? '-');
+                    const changedValue = key === 'date' && changesObj.date ? formatDisplayDateOnly(changesObj.date) : String(changesObj[key] ?? '-');
                     return (
                         React.createElement("div", { key: key, className: "grid grid-cols-[auto,1fr] gap-x-2 items-center" },
                             React.createElement("div", { className: "text-slate-500 font-semibold" }, translatedKey, ":"),
@@ -1711,49 +1715,26 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
     };
 
     const renderOriginalRecord = (record) => {
+        const recordObj = typeof record === 'string' ? JSON.parse(record) : record;
         return (
             React.createElement("div", { className: "grid grid-cols-[max-content,1fr] gap-x-4 gap-y-1 text-sm" },
-                record.kayitNumarasi && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.kayitNumarasi, ":"), React.createElement("span", { className: "text-slate-800" }, formatDisplayDate(record.kayitNumarasi)))
+                recordObj.kayitNumarasi && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.kayitNumarasi, ":"), React.createElement("span", { className: "text-slate-800" }, formatDisplayDate(recordObj.kayitNumarasi)))
                 ),
-                record.date && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.date, ":"), React.createElement("span", { className: "text-slate-800" }, formatDisplayDateOnly(record.date)))
+                recordObj.date && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.date, ":"), React.createElement("span", { className: "text-slate-800" }, formatDisplayDateOnly(recordObj.date)))
                 ),
-                record.recordType && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.recordType, ":"), React.createElement("span", { className: "text-slate-800" }, RECORD_TYPE_TRANSLATIONS[record.recordType] || record.recordType))
+                recordObj.recordType && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.recordType, ":"), React.createElement("span", { className: "text-slate-800" }, RECORD_TYPE_TRANSLATIONS[recordObj.recordType] || recordObj.recordType))
                 ),
-                record.personnelName && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.personnelName, ":"), React.createElement("span", { className: "text-slate-800" }, record.personnelName))
+                recordObj.personnelName && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.personnelName, ":"), React.createElement("span", { className: "text-slate-800" }, recordObj.personnelName))
                 ),
-                record.jobTitle && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.jobTitle, ":"), React.createElement("span", { className: "text-slate-800" }, record.jobTitle))
+                recordObj.receiptNumber && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.receiptNumber, ":"), React.createElement("span", { className: "text-slate-800" }, recordObj.receiptNumber))
                 ),
-                record.receiptNumber && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.receiptNumber, ":"), React.createElement("span", { className: "text-slate-800" }, record.receiptNumber))
-                ),
-                record.fuelAmount != null && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.fuelAmount, ":"), React.createElement("span", { className: "text-slate-800" }, record.fuelAmount))
-                ),
-                record.locationType && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.locationType, ":"), React.createElement("span", { className: "text-slate-800" }, record.locationType))
-                ),
-                record.location && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.location, ":"), React.createElement("span", { className: "text-slate-800" }, record.location))
-                ),
-                record.tailNumber && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.tailNumber, ":"), React.createElement("span", { className: "text-slate-800" }, record.tailNumber))
-                ),
-                record.cardNumber && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.cardNumber, ":"), React.createElement("span", { className: "text-slate-800" }, record.cardNumber))
-                ),
-                record.tankerPlate && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.tankerPlate, ":"), React.createElement("span", { className: "text-slate-800" }, record.tankerPlate))
-                ),
-                record.receivingTankerPlate && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.receivingTankerPlate, ":"), React.createElement("span", { className: "text-slate-800" }, record.receivingTankerPlate))
-                ),
-                record.fillingTankerPlate && (
-                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.fillingTankerPlate, ":"), React.createElement("span", { className: "text-slate-800" }, record.fillingTankerPlate))
+                recordObj.fuelAmount != null && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.fuelAmount, ":"), React.createElement("span", { className: "text-slate-800" }, recordObj.fuelAmount))
                 )
             )
         );
@@ -1776,15 +1757,17 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
                         ),
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             approvalRequests.length > 0 ? (
-                                approvalRequests.map(req => (
-                                    React.createElement("tr", { key: req.id, onClick: () => setSelectedRequest(req), className: "hover:bg-slate-50 cursor-pointer" },
-                                        React.createElement("td", { className: "p-3" }, formatDisplayDate(req.originalRecord.kayitNumarasi)),
-                                        React.createElement("td", { className: "p-3" }, formatDisplayDateOnly(req.originalRecord.date)),
-                                        React.createElement("td", { className: "p-3" }, req.originalRecord.personnelName),
-                                        React.createElement("td", { className: "p-3" }, req.originalRecord.location),
+                                approvalRequests.map(req => {
+                                    // Robust check for originalRecord
+                                    const orig = typeof req.originalRecord === 'string' ? JSON.parse(req.originalRecord) : req.originalRecord;
+                                    return React.createElement("tr", { key: req.id, onClick: () => setSelectedRequest(req), className: "hover:bg-slate-50 cursor-pointer" },
+                                        React.createElement("td", { className: "p-3" }, formatDisplayDate(orig.kayitNumarasi)),
+                                        React.createElement("td", { className: "p-3" }, formatDisplayDateOnly(orig.date)),
+                                        React.createElement("td", { className: "p-3" }, orig.personnelName),
+                                        React.createElement("td", { className: "p-3" }, orig.location),
                                         React.createElement("td", { className: "p-3" }, req.requesterName)
                                     )
-                                ))
+                                })
                             ) : (
                                 React.createElement("tr", null,
                                     React.createElement("td", { colSpan: editRequestHeaders.length, className: "text-center p-6 text-slate-500" }, "Bekleyen düzeltme talebi bulunmamaktadır.")
@@ -2537,7 +2520,7 @@ const FileUpload = ({ onFileUpload }) => {
                 className: "hidden"
             }),
             React.createElement("label", { htmlFor: "fileInput", className: "cursor-pointer" },
-                React.createElement("p", { className: "text-slate-500" }, "Dosyayı buraya sürükleyip bırakın"),
+                React.createElement("p", { className: "text-slate-500" }, "Excel dosyasını buraya sürükleyip bırakın"),
                 React.createElement("p", { className: "text-slate-500 my-2" }, "veya"),
                 React.createElement("span", { className: "inline-block py-2 px-4 bg-ogm-green-600 text-white rounded-md font-semibold hover:bg-ogm-green-700" }, "Dosya Seç")
             )
@@ -3021,6 +3004,51 @@ const AdminPanel = (props) => {
     const [activeModule, setActiveModule] = useState('dataEntry');
     const [activeDataEntryView, setActiveDataEntryView] = useState('bulkUpload');
 
+    // Örnek Excel Şablonu İndirme Fonksiyonu
+    const downloadSampleTemplate = () => {
+        const wb = XLSX.utils.book_new();
+        
+        // Örnek veriler ve sayfalar
+        const sheetsData = {
+            "hava aracı verisi": [
+                ["Kuyruk No", "Firma", "Tip", "Çağrı Kodu"],
+                ["OR-2025", "OGM", "T-70", "ORKAN-1"],
+                ["TC-XXX", "KİRALIK", "MI-8", "HELİ-1"]
+            ],
+            "tanker verisi": [
+                ["Plaka", "Bölge", "Firma", "Kapasite"],
+                ["34 OGM 01", "ANKARA", "OGM", "15000"],
+                ["06 TR 123", "ADANA", "ÖZEL FIRMA", "20000"]
+            ],
+            "personnel verisi": [
+                ["Adı Soyadı", "Mesleği"],
+                ["AHMET YILMAZ", "Pilot"],
+                ["MEHMET DEMİR", "Şoför"]
+            ],
+            "hava limanı verisi": [
+                ["Hava Limanı Adı", "Tipi"],
+                ["Esenboğa Havalimanı (ESB)", "Sivil"],
+                ["Mürted Hava Meydanı", "Askeri"]
+            ],
+            "koçan verisi": [
+                ["Tanker Plakası", "Başlangıç No", "Bitiş No"],
+                ["34 OGM 01", "1", "100"],
+                ["06 TR 123", "500", "600"]
+            ],
+            "yakıt kayıtları verisi": [
+                ["Tarih", "Kayıt Tipi", "Makbuz Numarası", "Yakıt Miktarı (lt)", "Kuyruk Numarası", "Personel Adı", "Mesleği", "Kart Numarası", "İkmal Tipi", "İkmal Konumu", "Dolum Yapılan Tanker Plakası", "Dolum Yapılan Hava Limanı", "Yakıtı Alan Tanker Plakası", "Yakıtı Veren Tanker Plakası"],
+                ["2025-05-15", "Hava Aracı İkmal", "AN / 123", "500.5", "OR-2025", "AHMET YILMAZ", "Pilot", "", "Hava Limanı/Alanı", "Esenboğa Havalimanı (ESB)", "", "", "", ""]
+            ]
+        };
+
+        Object.keys(sheetsData).forEach(sheetName => {
+            const ws = XLSX.utils.aoa_to_sheet(sheetsData[sheetName]);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        });
+
+        XLSX.writeFile(wb, "YTS_Veri_Yukleme_Sablonu.xlsx");
+    };
+
     const handleBulkFileUpload = (file) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -3032,61 +3060,48 @@ const AdminPanel = (props) => {
 
                 workbook.SheetNames.forEach(sheetName => {
                     const worksheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                    if (json.length < 2) return;
+                    const json = XLSX.utils.sheet_to_json(worksheet); // Basit obje okuma
 
                     const normalizedSheetName = sheetName.trim().toLowerCase();
 
                     if (normalizedSheetName === 'hava aracı verisi') {
-                        const newAircrafts = (json.slice(1)).map((row, index) => {
-                            if (row.length < 4 || !row[0] || !row[1] || !row[2] || !row[3]) return null;
-                            return { id: `file-${Date.now()}-${index}`, tailNumber: String(row[0]).trim().toUpperCase(), company: String(row[1]).trim(), aircraftType: String(row[2]).trim(), callSign: String(row[3]).trim() };
+                        const newAircrafts = json.map((row, index) => {
+                            const tail = String(row["Kuyruk No"] || "").trim().toUpperCase();
+                            if (!tail) return null;
+                            return { id: `file-${Date.now()}-${index}`, tailNumber: tail, company: String(row["Firma"] || "").trim(), aircraftType: String(row["Tip"] || "").trim(), callSign: String(row["Çağrı Kodu"] || "").trim() };
                         }).filter(Boolean);
                         if (newAircrafts.length > 0) {
                             updates.aircraftData = [...props.aircraftData, ...newAircrafts];
                             successMessages.push(`${newAircrafts.length} hava aracı`);
                         }
                     } else if (normalizedSheetName === 'tanker verisi') {
-                         const newTankers = (json.slice(1)).map((row, index) => {
-                            if (row.length < 4 || !row[0] || !row[1] || !row[2] || !row[3]) return null;
-                            return { id: `file-tanker-${Date.now()}-${index}`, plate: String(row[0]).trim().toUpperCase(), region: String(row[1]).trim(), company: String(row[2]).trim(), capacity: parseFloat(row[3]) || 0 };
+                         const newTankers = json.map((row, index) => {
+                            const plate = String(row["Plaka"] || "").trim().toUpperCase();
+                            if(!plate) return null;
+                            return { id: `file-tanker-${Date.now()}-${index}`, plate: plate, region: String(row["Bölge"] || "").trim(), company: String(row["Firma"] || "").trim(), capacity: parseFloat(row["Kapasite"]) || 0 };
                         }).filter(Boolean);
                         if (newTankers.length > 0) {
                             updates.tankerData = [...props.tankerData, ...newTankers];
                             successMessages.push(`${newTankers.length} tanker`);
                         }
                     } else if (normalizedSheetName === 'personel verisi') {
-                        const newPersonnelList = (json.slice(1)).map((row, index) => {
-                            if (row.length < 2 || !row[0] || !row[1]) return null;
-                            const job = String(row[1]).trim();
-                            if (!['Pilot', 'Şoför', 'Uçuş Teknisyeni'].includes(job)) return null;
-                            return { id: `file-personnel-${Date.now()}-${index}`, name: String(row[0]).trim(), job: job };
+                        const newPersonnelList = json.map((row, index) => {
+                            const name = String(row["Adı Soyadı"] || "").trim();
+                            if(!name) return null;
+                            return { id: `file-personnel-${Date.now()}-${index}`, name: name, job: String(row["Mesleği"] || "Pilot").trim() };
                         }).filter(Boolean);
                         if (newPersonnelList.length > 0) {
                             updates.personnelList = [...props.personnelList, ...newPersonnelList];
                             successMessages.push(`${newPersonnelList.length} personel`);
                         }
-                    } else if (normalizedSheetName === 'hava limanı verisi') {
-                        const newAirports = (json.slice(1)).map((row, index) => {
-                             if (row.length < 2 || !row[0] || !row[1]) return null;
-                             const type = String(row[1]).trim();
-                             if (type !== 'Sivil' && type !== 'Askeri') return null;
-                             return { id: `file-airport-${Date.now()}-${index}`, name: String(row[0]).trim(), type };
-                        }).filter((airport) => airport !== null);
-                        if (newAirports.length > 0) {
-                            updates.airportList = [...props.airportList, ...newAirports];
-                            successMessages.push(`${newAirports.length} hava limanı`);
-                        }
                     } else if (normalizedSheetName === 'koçan verisi') {
-                        const newBooks = (json.slice(1)).map((row, index) => {
-                            if (row.length < 3 || !row[0] || !row[1] || !row[2]) return null;
-                             const start = parseInt(row[1]);
-                             const end = parseInt(row[2]);
+                        const newBooks = json.map((row, index) => {
+                             const start = parseInt(row["Başlangıç No"]);
+                             const end = parseInt(row["Bitiş No"]);
                              if(isNaN(start) || isNaN(end)) return null;
                             return { 
                                 id: `file-book-${Date.now()}-${index}`, 
-                                tankerPlate: String(row[0]).trim().toUpperCase(), 
+                                tankerPlate: String(row["Tanker Plakası"] || "").trim().toUpperCase(), 
                                 startSerial: start,
                                 endSerial: end
                             };
@@ -3095,63 +3110,6 @@ const AdminPanel = (props) => {
                             updates.receiptBooks = [...props.receiptBooks, ...newBooks];
                             successMessages.push(`${newBooks.length} koçan serisi`);
                         }
-                    } else if (normalizedSheetName === 'yakıt kayıtları verisi') {
-                        const headerRow = (json[0]).map(h => String(h || '').trim());
-                        const colMap = {
-                            tarih: headerRow.indexOf('Tarih'),
-                            kayitTipi: headerRow.indexOf('Kayıt Tipi'),
-                            makbuzNo: headerRow.indexOf('Makbuz Numarası'),
-                            yakitMiktari: headerRow.indexOf('Yakıt Miktarı (lt)'),
-                            kuyrukNo: headerRow.indexOf('Kuyruk Numarası'),
-                            personelAdi: headerRow.indexOf('Personel Adı'),
-                            meslegi: headerRow.indexOf('Mesleği'),
-                            kartNo: headerRow.indexOf('Kart Numarası'),
-                            ikmalTipi: headerRow.indexOf('İkmal Tipi'),
-                            ikmalKonumu: headerRow.indexOf('İkmal Konumu'),
-                            dolumYapilanTanker: headerRow.indexOf('Dolum Yapılan Tanker Plakası'),
-                            dolumYapilanHavaLimani: headerRow.indexOf('Dolum Yapılan Hava Limanı'),
-                            yakitiAlanTanker: headerRow.indexOf('Yakıtı Alan Tanker Plakası'),
-                            yakitiVerenTanker: headerRow.indexOf('Yakıtı Veren Tanker Plakası'),
-                        };
-
-                        if (colMap.tarih === -1 || colMap.kayitTipi === -1 || colMap.makbuzNo === -1 || colMap.yakitMiktari === -1) {
-                            props.showMessage('Yakıt kayıtları sayfasında zorunlu sütunlar eksik.', 'error');
-                            return;
-                        }
-                        
-                        const newFuelRecords = (json.slice(1)).map((row, index) => {
-                            try {
-                                if (!row || row.length === 0) return null;
-                                const recordTypeStr = String(row[colMap.kayitTipi] || '').trim();
-                                if (!['Hava Aracı İkmal', 'Tanker Dolum', 'Tanker Transfer'].includes(recordTypeStr)) return null;
-                                const dateStr = parseSheetDate(row[colMap.tarih]);
-                                if (!dateStr) return null;
-                                const baseRecord = {
-                                    id: `file-fuel-${Date.now()}-${index}`,
-                                    kayitNumarasi: generateRecordNumber(),
-                                    date: dateStr,
-                                    receiptNumber: String(row[colMap.makbuzNo] || '').trim(),
-                                    fuelAmount: parseFloat(String(row[colMap.yakitMiktari] || '0').replace(',', '.')) || 0,
-                                };
-                                if (recordTypeStr === 'Hava Aracı İkmal') {
-                                    const personnelName = String(row[colMap.personelAdi] || '').trim();
-                                    const personnel = props.personnelList.find(p => p.name === personnelName);
-                                    return { ...baseRecord, recordType: 'personnel', personnelName, personnelId: personnel?.id, jobTitle: String(row[colMap.meslegi] || '').trim(), locationType: String(row[colMap.ikmalTipi] || '').trim(), location: String(row[colMap.ikmalKonumu] || '').trim(), tailNumber: String(row[colMap.kuyrukNo] || '').trim(), cardNumber: String(row[colMap.kartNo] || '').trim() };
-                                } else if (recordTypeStr === 'Tanker Dolum') {
-                                    return { ...baseRecord, recordType: 'tankerDolum', locationType: "Tanker Dolum", personnelName: 'Tanker Dolum', tankerPlate: String(row[colMap.dolumYapilanTanker] || '').trim(), location: String(row[colMap.dolumYapilanHavaLimani] || '').trim() };
-                                } else if (recordTypeStr === 'Tanker Transfer') {
-                                    const veren = String(row[colMap.yakitiVerenTanker] || '').trim();
-                                    const alan = String(row[colMap.yakitiAlanTanker] || '').trim();
-                                    return { ...baseRecord, recordType: 'tankerTransfer', locationType: "Tanker Transfer", personnelName: 'Tanker Transfer', receivingTankerPlate: alan, fillingTankerPlate: veren, location: `${veren} -> ${alan}` };
-                                }
-                                return null;
-                            } catch(e) { console.error('Error parsing fuel record row:', row, e); return null; }
-                        }).filter(Boolean);
-
-                        if (newFuelRecords.length > 0) {
-                            updates.fuelRecords = [...props.fuelRecords, ...newFuelRecords];
-                            successMessages.push(`${newFuelRecords.length} yakıt kaydı`);
-                        }
                     }
                 });
 
@@ -3159,10 +3117,10 @@ const AdminPanel = (props) => {
                     props.onBulkUpdate(updates);
                     props.showMessage(`${successMessages.join(', ')} başarıyla yüklendi.`, 'success');
                 } else {
-                    props.showMessage('Excel dosyasında geçerli veri içeren sayfa bulunamadı.', 'error');
+                    props.showMessage('Excel dosyasında tanımlı formatta veri bulunamadı.', 'error');
                 }
             } catch (error) {
-                props.showMessage('Dosya ayrıştırılamadı. Lütfen dosyayı kontrol edin.', 'error');
+                props.showMessage('Dosya ayrıştırılamadı. Lütfen şablona uygun bir dosya kullanın.', 'error');
                 console.error("Bulk file parsing error:", error);
             }
         };
@@ -3189,14 +3147,12 @@ const AdminPanel = (props) => {
             ),
             React.createElement("div", { className: "mt-4" },
                  activeDataEntryView === 'bulkUpload' && React.createElement("div", { className: "p-6 bg-black/5 rounded-lg border border-slate-200 space-y-4" },
-                    React.createElement("h3", { className: "text-lg font-semibold text-slate-700" }, "Excel Dosyası Yükle"),
+                    React.createElement("div", { className: "flex justify-between items-center" },
+                        React.createElement("h3", { className: "text-lg font-semibold text-slate-700" }, "Excel Dosyası Yükle"),
+                        React.createElement("button", { onClick: downloadSampleTemplate, className: "py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all" }, "Örnek Şablon İndir")
+                    ),
                      React.createElement("div", { className: "text-sm text-slate-600 space-y-2" },
-                        React.createElement("p", null, "Lütfen içinde 'koçan verisi', 'hava aracı verisi', 'tanker verisi', 'personel verisi', 'hava limanı verisi' ve 'yakıt kayıtları verisi' adında sayfalar bulunan tek bir Excel dosyası yükleyin."),
-                        React.createElement("p", null, React.createElement("strong", null, "Önemli:"), " 'koçan verisi' sayfası şu sütunları içermelidir: Tanker Plakası, Başlangıç No, Bitiş No."),
-                        React.createElement("p", { className: "mt-2" }, "'yakıt kayıtları verisi' sayfası aşağıdaki 14 sütunu içermelidir (sırası önemli değildir):"),
-                        React.createElement("ul", { className: "list-disc list-inside text-xs pl-4 grid grid-cols-2 gap-x-4" },
-                            ['Tarih', 'Kayıt Tipi', 'Makbuz Numarası', 'Yakıt Miktarı (lt)', 'Kuyruk Numarası', 'Personel Adı', 'Mesleği', 'Kart Numarası', 'İkmal Tipi', 'İkmal Konumu', 'Dolum Yapılan Tanker Plakası', 'Dolum Yapılan Hava Limanı', 'Yakıtı Alan Tanker Plakası', 'Yakıtı Veren Tanker Plakası'].map(col => React.createElement("li", { key: col }, col))
-                        )
+                        React.createElement("p", null, "Lütfen yükleyeceğiniz dosyanın yukarıdaki buton ile indirilen şablonla aynı sayfa adlarına ve sütun başlıklarına sahip olduğundan emin olun.")
                     ),
                     React.createElement("div", { className: "mt-4" }, React.createElement(FileUpload, { onFileUpload: handleBulkFileUpload }))
                  ),
@@ -3420,6 +3376,18 @@ const App = () => {
         }
     };
 
+    // Karakter bozulmasını önlemek için yardımcı parse fonksiyonu
+    const robustParseJSON = (str) => {
+        if (!str || typeof str !== 'string') return str;
+        try { return JSON.parse(str); } catch(e) { return str; }
+    };
+
+    const normalizeApprovals = (data) => (data || []).map(req => ({
+        ...req,
+        originalRecord: robustParseJSON(req.originalRecord),
+        requestedChanges: robustParseJSON(req.requestedChanges)
+    }));
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -3447,7 +3415,9 @@ const App = () => {
                 setAirportList(typedAirports.length > 0 ? typedAirports : INITIAL_AIRPORT_LIST);
 
                 setReceiptBooks(panelData.receiptBooks || []);
-                setApprovalRequests(approvalRequestsResult.data || []);
+                
+                // Karakter bozulması hatası düzeltmesi: Gelen approval verilerini parse ediyoruz
+                setApprovalRequests(normalizeApprovals(approvalRequestsResult.data));
                 setPersonnelApprovalRequests(personnelApprovalRequestsResult.data || []);
 
             } catch (error) {
@@ -3540,7 +3510,8 @@ const App = () => {
         const result = await postData(action, payload);
         
         setFuelRecords(result.data.fuelRecords.map((r) => normalizeSheetRecord(r, personnelList)).filter(Boolean));
-        setApprovalRequests(result.data.approvalRequests);
+        // Karakter bozulması fix:
+        setApprovalRequests(normalizeApprovals(result.data.approvalRequests));
         
         showMessage(`Talep ${approved ? 'onaylandı' : 'reddedildi'}.`, 'success');
     };
@@ -3567,7 +3538,7 @@ const App = () => {
         return (
             React.createElement("div", { className: "fixed inset-0 bg-white flex flex-col justify-center items-center z-50 text-center animate-fadeIn" },
                 React.createElement("img", {
-                    src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/eRlCNIpfGdPdub57JI/giphy.gif",
+                    src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
                     alt: "OGM Logo",
                     className: "h-48 w-48 rounded-full object-cover mb-8"
                 }),
