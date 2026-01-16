@@ -53,6 +53,41 @@
       .animate-blinker {
         animation: blinker 1.5s linear infinite;
       }
+      /* Excel style table fixes */
+      .excel-table {
+        border-collapse: collapse;
+        width: 100%;
+        border: 1px solid #94a3b8;
+      }
+      .excel-table thead th {
+        background-color: #14532d !important; /* koyu yeşil */
+        color: #ffffff !important; /* beyaz yazı */
+        border: 1px solid #94a3b8;
+        text-align: center;
+        padding: 10px 8px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .excel-table tbody td {
+        border: 1px solid #cbd5e1; /* açık mavi/gri grid */
+        padding: 8px;
+        font-size: 0.85rem;
+        background-color: #ffffff;
+        color: #334155;
+      }
+      .excel-table tr:nth-child(even) td {
+        background-color: #f8fafc;
+      }
+      .excel-table .text-right {
+        text-align: right !important;
+      }
+      .excel-table .text-left {
+        text-align: left !important;
+      }
+      .excel-table .text-center {
+        text-align: center !important;
+      }
     </style>
   <script>
     tailwind.config = {
@@ -117,6 +152,8 @@ const FIELD_TRANSLATIONS = {
     fuelAmount: 'Yakıt Miktarı (lt)',
     locationType: 'İkmal Tipi',
     location: 'Konum / İkmal Yeri',
+    receiptType: 'Makbuz Tipi',
+    company: 'Kurum',
 
     // Personnel Specific
     personnelId: 'Personel ID',
@@ -264,6 +301,40 @@ const parseSheetDate = (dateValue) => {
     return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
 };
 
+const exportTableToExcel = (tableId, filename) => {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    // Clone table for manipulation
+    const clone = table.cloneNode(true);
+    clone.querySelectorAll('[data-exclude="true"]').forEach(el => el.remove());
+    
+    // Excel specific header styles (Inline for browser compatibility with Excel app)
+    const headers = clone.querySelectorAll('th');
+    headers.forEach(th => {
+        th.style.backgroundColor = '#14532d';
+        th.style.color = '#ffffff';
+        th.style.border = '1px solid #94a3b8';
+        th.style.fontWeight = 'bold';
+    });
+    
+    const cells = clone.querySelectorAll('td');
+    cells.forEach(td => {
+        td.style.border = '1px solid #cbd5e1';
+    });
+
+    const html = clone.outerHTML;
+    const blob = new Blob(['\ufeff', html], {
+        type: 'application/vnd.ms-excel'
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename + '.xls';
+    link.click();
+    URL.revokeObjectURL(url);
+};
+
 // From components/Modal.tsx
 const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
@@ -272,14 +343,14 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             className: "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40 p-4",
             onClick: onClose
         }, React.createElement("div", {
-            className: "bg-white/80 backdrop-blur-md rounded-xl shadow-2xl w-full max-w-lg flex flex-col gap-4 border border-white/30",
+            className: "bg-white/80 backdrop-blur-md rounded-xl shadow-2xl w-full max-w-5xl flex flex-col gap-4 border border-white/30",
             onClick: e => e.stopPropagation()
         }, React.createElement("div", {
             className: "p-5 border-b border-slate-200"
         }, React.createElement("h3", {
             className: "text-xl font-bold text-slate-700"
         }, title)), React.createElement("div", {
-            className: "p-5 flex flex-col gap-4"
+            className: "p-5 flex flex-col gap-4 overflow-auto max-h-[80vh]"
         }, children)))
     );
 };
@@ -405,7 +476,7 @@ const LoadingSpinner = ({ isVisible }) => {
     if (!isVisible) return null;
     return (
         React.createElement("div", { className: "fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50" },
-            React.createElement("div", { className: "text-white text-lg font-semibold flex items-center gap-4 p-4 bg-black/50 rounded-lg" },
+            React.createElement("div", { className: "text-white text-lg font-semibold flex items-center gap-4 p-4 bg-black/5 rounded-lg" },
                 React.createElement("svg", { className: "animate-spin h-8 w-8 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
                     React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
                     React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
@@ -436,7 +507,7 @@ const RedirectingOverlay = ({ isVisible, isFadingOut }) => {
     return (
         React.createElement("div", { className: `fixed inset-0 bg-white flex flex-col justify-center items-center z-50 text-center ${animationClass}` },
             React.createElement("img", {
-                src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/1rrxPs1nb3IjwmbiXw/giphy.gif",
+                src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1rrxPs1nb3IjwmbiXw/giphy.gif",
                 alt: "Helikopter Logo",
                 className: "h-48 w-48 rounded-full object-cover mb-8"
             }),
@@ -452,7 +523,7 @@ const Header = () => {
             React.createElement("div", { className: "flex items-center space-x-1 sm:space-x-4 ml-2 sm:ml-4" },
                 React.createElement("div", { className: "rounded-full embedded-shadow flex-shrink-0" },
                     React.createElement("img", {
-                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/eRlCNIpfGdPdub57JI/giphy.gif",
+                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
                         alt: "OGM Logo",
                         className: "h-14 w-14 sm:h-28 sm:w-28 rounded-full object-cover"
                     })
@@ -540,10 +611,11 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
         airport: '',
         receivingTankerPlate: '',
         fillingTankerPlate: '',
+        receiptType: '',
     };
 
     const [isManualPersonnelEntry, setIsManualPersonnelEntry] = useState(false);
-    const [manualPersonnel, setManualPersonnel] = useState({ name: '', job: '' });
+    const [manualPersonnel, setManualPersonnel] = useState({ name: '', job: '', company: '' });
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState(defaultFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -551,11 +623,24 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
     const finalJobTitle = useMemo(() => isManualPersonnelEntry ? manualPersonnel.job : formData.jobTitle, [isManualPersonnelEntry, manualPersonnel.job, formData.jobTitle]);
     const shouldShowTailNumber = useMemo(() => finalJobTitle === 'Pilot' || finalJobTitle === 'Uçuş Teknisyeni', [finalJobTitle]);
 
+    const selectedPersonnelObject = useMemo(() => {
+        if (isManualPersonnelEntry) return null;
+        return personnelList.find(p => p.id === formData.personnelId);
+    }, [formData.personnelId, personnelList, isManualPersonnelEntry]);
+
+    const showReceiptTypeSelection = useMemo(() => {
+        if (entryType !== 'personnel') return false;
+        const companyValue = (selectedPersonnelObject?.company || (isManualPersonnelEntry ? manualPersonnel.company : "")).toUpperCase().trim();
+        const isPilotOrTech = finalJobTitle === 'Pilot' || finalJobTitle === 'Uçuş Teknisyeni';
+        if (companyValue === 'OGM') return false;
+        return isPilotOrTech;
+    }, [entryType, selectedPersonnelObject, finalJobTitle, isManualPersonnelEntry, manualPersonnel.company]);
+
     useEffect(() => {
         setCurrentStep(1);
         setFormData(defaultFormData);
         setIsManualPersonnelEntry(false);
-        setManualPersonnel({ name: '', job: '' });
+        setManualPersonnel({ name: '', job: '', company: '' });
     }, [entryType]);
 
     useEffect(() => {
@@ -590,7 +675,12 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
     }
 
     const handleGenericSelect = (name, value) => {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'receiptType') {
+            // Checkbox logic: clicking already selected value unchecks it
+            setFormData(prev => ({ ...prev, [name]: prev.receiptType === value ? "" : value }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handlePersonnelChange = (selectedValue) => {
@@ -669,13 +759,20 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
         let redirectUrl = '';
         const kayitNumarasi = generateRecordNumber();
 
-        const ogmUrl = "https://bulut.ogm.gov.tr/app/tr-TR/Form/Paylas/OGMDrive/75ea6f49-f522-41f7-90a5-73d41bc8bdea";
-        const rentalAircraftUrl = "https://bulut.ogm.gov.tr/app/tr-TR/Form/Paylas/OGMDrive/a241325f-9a09-47a2-aed3-1e298f69e324";
-        const rentalTankerUrl = "https://bulut.ogm.gov.tr/app/tr-TR/Form/Paylas/OGMDrive/c9d7fd7b-8e6e-4daa-a486-6b01c8a89004";
+        const ogmUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ";
+        const rentalAircraftUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
+        const rentalTankerUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
+
+        const ogmKurumMakbuzUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ";
+        const ogmKiralikHavaMakbuzUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
+        const kiralikTankerUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
+
+        const finalJobTitleForSubmit = isManualPersonnelEntry ? manualPersonnel.job : formData.jobTitle;
+        const personnelCompany = (isManualPersonnelEntry ? manualPersonnel.company : selectedPersonnelObject?.company || "").toLowerCase().trim();
+        const isPersonnelOGM = personnelCompany.includes('ogm') || personnelCompany.includes('orman');
 
         if (entryType === 'personnel') {
             let formattedReceiptNumber = formData.receiptNumber;
-            const finalJobTitleForSubmit = isManualPersonnelEntry ? manualPersonnel.job : formData.jobTitle;
 
             if (finalJobTitleForSubmit === 'Şoför') {
                 formattedReceiptNumber = `ATIK / ${formData.receiptNumber}`;
@@ -699,29 +796,39 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
             }
 
             const selectedAircraft = aircraftData.find(a => a.tailNumber === formData.tailNumber);
-            const companyName = selectedAircraft?.company?.toLowerCase().trim() || '';
-            const ogmCompanies = ['ogm', 'orman'];
+            const aircraftCompany = selectedAircraft?.company?.toLowerCase().trim() || '';
+            const isAircraftOGM = aircraftCompany.includes('ogm') || aircraftCompany.includes('orman');
 
-            if (ogmCompanies.some(ogmComp => companyName.includes(ogmComp))) {
+            const isPilotOrTech = finalJobTitleForSubmit === 'Pilot' || finalJobTitleForSubmit === 'Uçuş Teknisyeni';
+            const isDriver = finalJobTitleForSubmit === 'Şoför';
+
+            // New redirection logic for personnel entries
+            if (isDriver && isPersonnelOGM) {
+                redirectUrl = ogmKurumMakbuzUrl;
+            } else if (isPilotOrTech && (!isPersonnelOGM || !isAircraftOGM)) {
+                redirectUrl = ogmKiralikHavaMakbuzUrl;
+            } else if (isAircraftOGM) {
                 redirectUrl = ogmUrl;
             } else {
                 redirectUrl = rentalAircraftUrl;
             }
 
             let finalPersonnelData = {
-                personnelName: formData.personnelName,
-                jobTitle: formData.jobTitle
+                personnelName: isManualPersonnelEntry ? manualPersonnel.name : formData.personnelName,
+                jobTitle: finalJobTitleForSubmit
             };
 
             if(isManualPersonnelEntry) {
-                finalPersonnelData = {
-                    personnelName: manualPersonnel.name,
-                    jobTitle: manualPersonnel.job
-                };
                 await onAddPersonnelRequest({
                     name: manualPersonnel.name,
                     job: manualPersonnel.job,
+                    company: manualPersonnel.company
                 });
+            }
+
+            let finalReceiptType = "-";
+            if (personnelCompany !== 'ogm' && personnelCompany !== 'orman' && isPilotOrTech) {
+                finalReceiptType = formData.receiptType || "-";
             }
 
             recordToSave = {
@@ -731,15 +838,23 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                 kayitNumarasi,
                 receiptNumber: formattedReceiptNumber,
                 recordType: 'personnel',
+                receiptType: finalReceiptType
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
 
         } else if (entryType === 'tankerDolum' || entryType === 'tankerTransfer') {
              const tankerPlateToCheck = entryType === 'tankerDolum' ? formData.tankerPlate : formData.fillingTankerPlate;
              const tanker = tankerData.find(t => t.plate === tankerPlateToCheck);
-             const companyName = tanker?.company?.toLowerCase().trim() || '';
+             const tankerCompany = tanker?.company?.toLowerCase().trim() || '';
+             const isTankerOGM = tankerCompany.includes('ogm') || tankerCompany.includes('orman');
+             const isDriver = finalJobTitleForSubmit === 'Şoför';
              
-             if (companyName.includes('ogm')) {
+             // New redirection logic for tanker entries
+             if (isDriver && isPersonnelOGM && isTankerOGM) {
+                 redirectUrl = ogmKurumMakbuzUrl;
+             } else if (isDriver && !isPersonnelOGM && !isTankerOGM) {
+                 redirectUrl = kiralikTankerUrl;
+             } else if (isTankerOGM) {
                  redirectUrl = ogmUrl;
              } else {
                  redirectUrl = rentalTankerUrl;
@@ -756,6 +871,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     personnelName: 'Tanker Dolum',
                     recordType: 'tankerDolum',
                     kayitNumarasi,
+                    receiptType: "-"
                 };
              } else { // tankerTransfer
                 recordToSave = {
@@ -769,6 +885,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     personnelName: 'Tanker Transfer',
                     recordType: 'tankerTransfer',
                     kayitNumarasi,
+                    receiptType: "-"
                 };
              }
         }
@@ -823,7 +940,8 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                                     React.createElement("option", { value: "Pilot" }, "Pilot"),
                                     React.createElement("option", { value: "Uçuş Teknisyeni" }, "Uçuş Teknisyeni"),
                                     React.createElement("option", { value: "Şoför" }, "Şoför")
-                                )
+                                ),
+                                React.createElement(InputField, { type: "text", name: "company", value: manualPersonnel.company, onChange: handleManualPersonnelChange, placeholder: "Kurum / Şirket Bilgisi" })
                             )
                     ),
                      React.createElement("div", { className: "flex items-center gap-2 mt-2" },
@@ -836,16 +954,21 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     ));
             case 2:
                 return React.createElement("div", { className: "space-y-4" },
-                    React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "İkmal Tipi:"),
-                         React.createElement(SelectField, { name: "locationType", value: formData.locationType, onChange: handleChange, required: true },
-                            React.createElement("option", { value: "", disabled: true }, "İkmal Tipi Seçiniz"),
-                            React.createElement("option", { value: "Tanker" }, "Tanker"),
-                            React.createElement("option", { value: "Hava Limanı/Alanı" }, "Hava Limanı/Alanı")
+                    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
+                        React.createElement("div", { className: "form-group" },
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "İkmal Tipi:"),
+                             React.createElement(SelectField, { name: "locationType", value: formData.locationType, onChange: handleChange, required: true },
+                                React.createElement("option", { value: "", disabled: true }, "İkmal Tipi Seçiniz"),
+                                React.createElement("option", { value: "Tanker" }, "Tanker"),
+                                finalJobTitle !== 'Şoför' && React.createElement("option", { value: "Hava Limanı/Alanı" }, "Hava Limanı/Alanı")
+                            )
+                        ),
+                        finalJobTitle === 'Şoför' && React.createElement("div", { className: "flex items-center" },
+                            React.createElement("p", { className: "text-blue-600 font-bold italic text-sm p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm" }, "** Şöför adı seçildiği için İkmal öncesi yakıt kontrol esnasında çıkan atık yakıt girilebilir")
                         )
                     ),
                     formData.locationType === 'Tanker' && React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Konum (Tanker Plakası):"),
+                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "Atık Çıkan Konum (Tanker Plakası):" : "Konum (Tanker Plakası):"),
                         React.createElement(AutocompleteSelect, {
                             options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
                             value: formData.location,
@@ -873,7 +996,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
             case 4:
                 return React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Makbuz Numarası:"),
+                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "ATIK Makbuz Numarası:" : "Makbuz Numarası:"),
                         React.createElement(InputField, { type: "text", name: "receiptNumber", value: formData.receiptNumber, onChange: handleChange, placeholder: "Örn: 123456789", required: true })
                     ),
                     shouldShowTailNumber && React.createElement("div", { className: "form-group" },
@@ -884,11 +1007,30 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                             onChange: (value) => handleGenericSelect('tailNumber', value),
                             placeholder: "Kuyruk No Seçiniz veya Arayınız"
                         })
+                    ),
+                    showReceiptTypeSelection && React.createElement("div", { className: "form-group space-y-2 mt-4 p-3 bg-slate-50 border rounded-lg" },
+                        React.createElement("label", { className: "font-bold text-slate-700 block mb-2" }, "Makbuz Tipi Seçiniz:"),
+                        [
+                            "Yangın maksatlı kalkış öncesi ve sonrası ikmal",
+                            "Atık yakıt makbuzu",
+                            "Test bakım vs yakıt makbuzu",
+                            "İntikal sonrası yakıt makbuzu"
+                        ].map(type => (
+                            React.createElement("label", { key: type, className: "flex items-start gap-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors" },
+                                React.createElement("input", { 
+                                    type: "checkbox", 
+                                    className: "mt-1 rounded text-ogm-green-600 focus:ring-ogm-green-500 w-4 h-4",
+                                    checked: formData.receiptType === type,
+                                    onChange: () => handleGenericSelect('receiptType', type)
+                                }),
+                                React.createElement("span", null, type)
+                            )
+                        ))
                     ));
             case 5:
                 return React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Alınan Yakıt Miktarı (lt):"),
+                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "Çıkan Atık Yakıt Miktarı (lt):" : "Alınan Yakıt Miktarı (lt):"),
                         React.createElement(InputField, { type: "number", name: "fuelAmount", value: formData.fuelAmount, onChange: e => setFormData(prev => ({ ...prev, fuelAmount: e.target.value })), step: "0.01", min: "0", placeholder: "Örn: 500.75", required: true })
                     )
                 );
@@ -1220,7 +1362,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                     )
                 )
             ),
-            React.createElement(Modal, { isOpen: isEditModalOpen, onClose: () => setIsEditModalOpen(false), title: "Kayıt Düzenleme Talebi Oluştur" },
+            React.createElement(Modal, { isOpen: !!isEditModalOpen, onClose: () => setIsEditModalOpen(false), title: "Kayıt Düzenleme Talebi Oluştur" },
                 editingRecord && React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                         React.createElement("div", null,
@@ -1613,10 +1755,10 @@ const TankerDataManagement = ({ tankerData, onUpdate, showMessage }) => {
             React.createElement(Modal, { isOpen: !!editingTanker, onClose: () => setEditingTanker(null), title: "Tanker Düzenle" },
                 editingTanker && (
                     React.createElement("div", { className: "space-y-4" },
-                        React.createElement("input", { type: "text", value: editingTanker.plate, onChange: e => setEditingTanker(p => p && { ...p, plate: e.target.value.toUpperCase() }), className: "w-full p-2 border rounded", placeholder: "Tanker Plakası" }),
-                        React.createElement("input", { type: "text", value: editingTanker.region, onChange: e => setEditingTanker(p => p && { ...p, region: e.target.value }), className: "w-full p-2 border rounded", placeholder: "Konuşlu Bölge" }),
-                        React.createElement("input", { type: "text", value: editingTanker.company, onChange: e => setEditingTanker(p => p && { ...p, company: e.target.value }), className: "w-full p-2 border rounded", placeholder: "Firma Adı" }),
-                        React.createElement("input", { type: "number", value: editingTanker.capacity, onChange: e => setEditingTanker(p => p && { ...p, capacity: Number(e.target.value) }), className: "w-full p-2 border rounded", placeholder: "Kapasite (Litre)" }),
+                        React.createElement("input", { type: "text", value: editingTanker.plate, onChange: e => setEditingTanker(p => p && { ...p, plate: e.target.value.toUpperCase() }), className: "w-full p-2 border border-slate-300 rounded-md" }),
+                        React.createElement("input", { type: "text", value: editingTanker.region, onChange: e => setEditingTanker(p => p && { ...p, region: e.target.value }), className: "w-full p-2 border border-slate-300 rounded-md" }),
+                        React.createElement("input", { type: "text", value: editingTanker.company, onChange: e => setEditingTanker(p => p && { ...p, company: e.target.value }), className: "w-full p-2 border border-slate-300 rounded-md" }),
+                        React.createElement("input", { type: "number", value: editingTanker.capacity, onChange: e => setEditingTanker(p => p && { ...p, capacity: Number(e.target.value) }), className: "w-full p-2 border border-slate-300 rounded-md" }),
                         React.createElement("div", { className: "flex justify-end gap-3 pt-2" },
                             React.createElement("button", { onClick: () => setEditingTanker(null), className: "py-2 px-5 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300" }, "İptal"),
                             React.createElement("button", { onClick: handleUpdateTanker, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700" }, "Kaydet")
@@ -1746,12 +1888,12 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
         React.createElement("div", { className: "space-y-6" },
             React.createElement("div", null,
                 React.createElement("h2", { className: "text-xl font-semibold text-slate-700 mb-4" }, "Bekleyen Düzeltme Talepleri"),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
-                        React.createElement("thead", { className: "bg-slate-100" },
+                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-md" },
+                    React.createElement("table", { className: "excel-table" },
+                        React.createElement("thead", null,
                             React.createElement("tr", null,
                                 editRequestHeaders.map(key => (
-                                    React.createElement("th", { key: key, className: "p-3 text-left font-semibold text-slate-600" }, FIELD_TRANSLATIONS[key] || key)
+                                    React.createElement("th", { key: key }, FIELD_TRANSLATIONS[key] || key)
                                 ))
                             )
                         ),
@@ -1779,12 +1921,12 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
             ),
              React.createElement("div", null,
                 React.createElement("h2", { className: "text-xl font-semibold text-slate-700 mb-4" }, "Yeni Personel Kayıt Talepleri"),
-                 React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
-                        React.createElement("thead", { className: "bg-slate-100" },
+                 React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-md" },
+                    React.createElement("table", { className: "excel-table" },
+                        React.createElement("thead", null,
                             React.createElement("tr", null,
                                 ['Ad Soyad', 'Meslek', 'Talep Tarihi'].map(header => (
-                                    React.createElement("th", { key: header, className: "p-3 text-left font-semibold text-slate-600" }, header)
+                                    React.createElement("th", { key: header }, header)
                                 ))
                             )
                         ),
@@ -1848,7 +1990,7 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
 
 // From components/PersonnelDataManagement.tsx
 const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
-    const [newPersonnel, setNewPersonnel] = useState({ name: '', job: '' });
+    const [newPersonnel, setNewPersonnel] = useState({ name: '', job: '', company: '' });
     const [editingPersonnel, setEditingPersonnel] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
 
@@ -1865,7 +2007,7 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
         const updatedList = [...personnelList, { ...newPersonnel, id: `p${Date.now()}` }];
         onUpdate(updatedList);
         showMessage('Personel başarıyla eklendi.', 'success');
-        setNewPersonnel({ name: '', job: '' });
+        setNewPersonnel({ name: '', job: '', company: '' });
     };
 
     const handleUpdatePersonnel = () => {
@@ -1904,11 +2046,16 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
         }
     };
 
+    const handleExport = () => {
+        exportTableToExcel('personnel-table-export', 'personel_listesi');
+        showMessage("Excel indirildi.", 'success');
+    };
+
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("div", { className: "p-4 bg-black/5 rounded-lg border border-slate-200 space-y-4" },
                 React.createElement("h3", { className: "text-lg font-semibold text-slate-700" }, "Manuel Personel Ekle"),
-                React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
+                React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-4 gap-4" },
                     React.createElement("input", { type: "text", name: "name", value: newPersonnel.name, onChange: handleInputChange, placeholder: "Adı Soyadı", className: "p-2 border rounded" }),
                      React.createElement(AutocompleteSelect, {
                         options: [{value: 'Pilot', label: 'Pilot'}, {value: 'Uçuş Teknisyeni', label: 'Uçuş Teknisyeni'}, {value: 'Şoför', label: 'Şoför'}],
@@ -1917,26 +2064,34 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
                         placeholder: "Meslek Seçiniz",
                         className: "p-2 border rounded"
                     }),
+                    React.createElement("input", { type: "text", name: "company", value: newPersonnel.company, onChange: handleInputChange, placeholder: "Kurum", className: "p-2 border rounded" }),
                     React.createElement("button", { onClick: handleAddPersonnel, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700" }, "Ekle")
                 )
             ),
             React.createElement("div", null,
-                React.createElement("h3", { className: "text-lg font-semibold text-slate-700 mb-2" }, "Mevcut Personeller"),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
+                React.createElement("div", { className: "flex justify-between items-center mb-2" },
+                    React.createElement("h3", { className: "text-lg font-semibold text-slate-700" }, "Mevcut Personeller"),
+                    React.createElement("button", { onClick: handleExport, className: "p-2 bg-green-600 text-white rounded-md hover:bg-green-700" },
+                         React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" }))
+                    )
+                ),
+                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-md" },
+                    React.createElement("table", { id: "personnel-table-export", className: "excel-table" },
                         React.createElement("thead", { className: "bg-slate-100" },
                             React.createElement("tr", null,
-                                React.createElement("th", { className: "p-3 w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === personnelList.length && personnelList.length > 0 })),
-                                React.createElement("th", { className: "p-3 text-left font-semibold text-slate-600" }, "Adı Soyadı"),
-                                React.createElement("th", { className: "p-3 text-left font-semibold text-slate-600" }, "Mesleği")
+                                React.createElement("th", { "data-exclude": "true", className: "p-3 w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === personnelList.length && personnelList.length > 0 })),
+                                React.createElement("th", { className: "text-left" }, "Adı Soyadı"),
+                                React.createElement("th", { className: "text-left" }, "Mesleği"),
+                                React.createElement("th", { className: "text-left" }, "Kurum")
                             )
                         ),
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             personnelList.map(person => (
                                 React.createElement("tr", { key: person.id, onDoubleClick: () => setEditingPersonnel(person), className: "hover:bg-slate-50 cursor-pointer" },
-                                    React.createElement("td", { className: "p-3" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(person.id), onChange: () => handleSelect(person.id) })),
-                                    React.createElement("td", { className: "p-3" }, person.name),
-                                    React.createElement("td", { className: "p-3" }, person.job)
+                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(person.id), onChange: () => handleSelect(person.id) })),
+                                    React.createElement("td", { className: "text-left" }, person.name),
+                                    React.createElement("td", { className: "text-left" }, person.job),
+                                    React.createElement("td", { className: "text-left" }, person.company || '-')
                                 )
                             ))
                         )
@@ -1956,6 +2111,7 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
                             placeholder: "Meslek Seçiniz",
                             className: "w-full p-2 border rounded"
                         }),
+                        React.createElement("input", { type: "text", value: editingPersonnel.company || '', onChange: e => setEditingPersonnel(p => p && {...p, company: e.target.value}), className: "w-full p-2 border rounded", placeholder: "Kurum" }),
                         React.createElement("div", { className: "flex justify-end gap-3 pt-2" },
                             React.createElement("button", { onClick: () => setEditingPersonnel(null), className: "py-2 px-5 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300" }, "İptal"),
                             React.createElement("button", { onClick: handleUpdatePersonnel, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700" }, "Kaydet")
@@ -2050,21 +2206,21 @@ const AirportDataManagement = ({ airportList, onUpdate, showMessage }) => {
             ),
             React.createElement("div", null,
                 React.createElement("h3", { className: "text-lg font-semibold text-slate-700 mb-2" }, "Mevcut Hava Limanları"),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
+                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-md" },
+                    React.createElement("table", { id: "airport-table-export", className: "excel-table" },
                         React.createElement("thead", { className: "bg-slate-100" },
                             React.createElement("tr", null,
-                                React.createElement("th", { className: "p-3 w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === airportList.length && airportList.length > 0 })),
-                                React.createElement("th", { className: "p-3 text-left font-semibold text-slate-600" }, "Hava Limanı Adı"),
-                                React.createElement("th", { className: "p-3 text-left font-semibold text-slate-600" }, "Tipi")
+                                React.createElement("th", { "data-exclude": "true", className: "p-3 w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === airportList.length && airportList.length > 0 })),
+                                React.createElement("th", { className: "text-left" }, "Hava Limanı Adı"),
+                                React.createElement("th", { className: "text-left" }, "Tipi")
                             )
                         ),
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             airportList.map(airport => (
                                 React.createElement("tr", { key: airport.id, onDoubleClick: () => setEditingAirport(airport), className: "hover:bg-slate-50 cursor-pointer" },
-                                    React.createElement("td", { className: "p-3" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(airport.id), onChange: () => handleSelect(airport.id) })),
-                                    React.createElement("td", { className: "p-3" }, airport.name),
-                                    React.createElement("td", { className: "p-3" },
+                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(airport.id), onChange: () => handleSelect(airport.id) })),
+                                    React.createElement("td", { className: "text-left" }, airport.name),
+                                    React.createElement("td", { className: "text-left" },
                                         React.createElement("span", { className: `px-2 py-1 rounded-full text-xs font-semibold ${airport.type === 'Askeri' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}` }, airport.type)
                                     )
                                 )
@@ -2263,7 +2419,15 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
 
     const getReceiptLink = (record) => {
         if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
-            return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
+            const plate = record.recordType === 'tankerDolum' ? record.tankerPlate : record.fillingTankerPlate;
+            const tanker = tankerData.find(t => t.plate === plate);
+            const comp = tanker ? (tanker.company || "") : "";
+            
+            if (comp === "OGM" || comp === "ogm" || comp === "Ogm") {
+                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+            } else {
+                return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
+            }
         }
         if (record.recordType === 'personnel' && record.tailNumber) {
             const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
@@ -2284,25 +2448,9 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             showMessage('Lütfen önce veri aratın.', 'error');
             return;
         }
-        const headers = ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Makbuz Numarası', 'Kuyruk No', 'Kart No', 'Yakıt (lt)'];
-        const data = displayedRecords.map(record => [
-            formatDisplayDate(record.kayitNumarasi),
-            formatDisplayDateOnly(record.date),
-            record.personnelName || '--',
-            record.jobTitle || '-',
-            record.locationType || '--',
-            record.location || '--',
-            record.receiptNumber || '--',
-            record.tailNumber || '-',
-            record.cardNumber || '-',
-            record.fuelAmount ? record.fuelAmount.toFixed(2) : '0.00'
-        ]);
-
+        
         if (format === 'xlsx') {
-            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Yakıt Kayıtları');
-            XLSX.writeFile(workbook, 'yakit_kayitlari_raporu.xlsx');
+            exportTableToExcel('makbuz-table-export', 'makbuz_yonetimi');
         }
         showMessage(`Rapor ${format.toUpperCase()} olarak başarıyla oluşturuldu.`, 'success');
     };
@@ -2318,9 +2466,9 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                     React.createElement("input", { type: "date", name: "endDate", value: filters.endDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement("input", { type: "text", name: "receiptNumber", value: filters.receiptNumber, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Makbuz No Girin" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.tankerPlates.map(p => ({ value: p, label: p })), value: filters.tankerPlate, onChange: (v) => handleFilterChange({target:{name:'tankerPlate',value:v}}), placeholder: "Plaka Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
-                    React.createElement(AutocompleteSelect, { options: filterOptions.airports.map(a => ({ value: a, label: a })), value: filters.airport, onChange: (v) => handleFilterChange({target:{name:'airport',value:v}}), placeholder: "Hava Limanı Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
+                    React.createElement(AutocompleteSelect, { options: filterOptions.airports.map(a => ({ value: a.name, label: a.name })), value: filters.airport, onChange: (v) => handleFilterChange({target:{name:'airport',value:v}}), placeholder: "Hava Limanı Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.tailNumbers.map(tn => ({ value: tn, label: tn })), value: filters.tailNumber, onChange: (v) => handleFilterChange({target:{name:'tailNumber',value:v}}), placeholder: "Kuyruk No Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
-                    React.createElement(AutocompleteSelect, { options: filterOptions.aircraftTypes.map(t => ({ value: t, label: t })), value: filters.aircraftType, onChange: (v) => handleFilterChange({target:{name:'aircraftType',value:v}}), placeholder: "Tip Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
+                    React.createElement(AutocompleteSelect, { options: filterOptions.aircraftTypes.map(t => ({ value: t.label, label: t.label })), value: filters.aircraftType, onChange: (v) => handleFilterChange({target:{name:'aircraftType',value:v}}), placeholder: "Tip Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.companies.map(c => ({ value: c, label: c })), value: filters.company, onChange: (v) => handleFilterChange({target:{name:'company',value:v}}), placeholder: "Firma Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" })
                 ),
                 React.createElement("div", { className: "pt-4" },
@@ -2337,37 +2485,41 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         )
                     )
                 ),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
-                        React.createElement("thead", { className: "bg-slate-100" },
+                React.createElement("div", { className: "overflow-x-auto border border-slate-300 rounded-lg shadow-md" },
+                    React.createElement("table", { id: "makbuz-table-export", className: "excel-table" },
+                        React.createElement("thead", null,
                             React.createElement("tr", null,
-                                React.createElement("th", { className: "p-3 w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === displayedRecords.length && displayedRecords.length > 0 })),
-                                ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz Numarası', 'Kuyruk No', 'Kart No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
-                                    React.createElement("th", { key: header, className: "p-3 text-left font-semibold text-slate-600" }, header)
+                                React.createElement("th", { "data-exclude": "true", className: "w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === displayedRecords.length && displayedRecords.length > 0 })),
+                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Kart No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
+                                    React.createElement("th", { key: header }, header)
                                 ))
                             )
                         ),
-                        React.createElement("tbody", { className: "divide-y divide-slate-200" },
+                        React.createElement("tbody", null,
                             displayedRecords.length > 0 ? displayedRecords.map(record => (
-                                React.createElement("tr", { key: record.id, onDoubleClick: () => setEditingRecord(record), className: "hover:bg-slate-50 cursor-pointer" },
-                                    React.createElement("td", { className: "p-3" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(record.id), onChange: () => handleSelect(record.id) })),
-                                    React.createElement("td", { className: "p-3" }, formatDisplayDate(record.kayitNumarasi)),
-                                    React.createElement("td", { className: "p-3" }, formatDisplayDateOnly(record.date)),
-                                    React.createElement("td", { className: "p-3" }, record.personnelName || '--'),
-                                    React.createElement("td", { className: "p-3" }, record.jobTitle || '-'),
-                                    React.createElement("td", { className: "p-3" }, record.location || '--'),
-                                    React.createElement("td", { className: "p-3" }, record.receiptNumber || '--'),
-                                    React.createElement("td", { className: "p-3" }, record.tailNumber || '-'),
-                                    React.createElement("td", { className: "p-3" }, record.cardNumber || '-'),
-                                    React.createElement("td", { className: "p-3" }, record.fuelAmount.toFixed(2)),
-                                    React.createElement("td", { className: "p-3" },
+                                React.createElement("tr", { key: record.id, className: "hover:bg-slate-50 cursor-pointer" },
+                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(record.id), onChange: () => handleSelect(record.id) })),
+                                    React.createElement("td", { className: "text-left" }, formatDisplayDate(record.kayitNumarasi)),
+                                    React.createElement("td", { className: "text-left" }, formatDisplayDateOnly(record.date)),
+                                    React.createElement("td", { className: "text-left" }, 
+                                        record.recordType === 'tankerDolum' ? `Tanker Dolum(${record.tankerPlate})` : (record.personnelName || '--')
+                                    ),
+                                    React.createElement("td", { className: "text-left" }, record.jobTitle || '-'),
+                                    React.createElement("td", { className: "text-left" }, record.locationType || '--'),
+                                    React.createElement("td", { className: "text-left" }, record.location || '--'),
+                                    React.createElement("td", { className: "text-left" }, record.receiptNumber || '--'),
+                                    React.createElement("td", { className: "text-left" }, record.receiptType || '-'),
+                                    React.createElement("td", { className: "text-left" }, record.tailNumber || '-'),
+                                    React.createElement("td", { className: "text-left" }, record.cardNumber || '-'),
+                                    React.createElement("td", { className: "text-right" }, record.fuelAmount.toFixed(2)),
+                                    React.createElement("td", { className: "text-left" },
                                         (() => {
                                             const link = getReceiptLink(record);
-                                            return link ? React.createElement("a", { href: link, target: "_blank", rel: "noopener noreferrer", className: "text-ogm-green-600 hover:text-ogm-green-800 hover:underline font-semibold" }, "Klasöre Git") : '-';
+                                            return link ? React.createElement("a", { href: link, target: "_blank", rel: "noopener noreferrer", className: "text-ogm-green-600 hover:text-ogm-green-800 hover:underline font-bold" }, "Klasöre Git") : '-';
                                         })()
                                     )
                                 )
-                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "text-center p-6 text-slate-500" }, "Arama yapmak için filtreleri kullanın."))
+                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 13, className: "text-center p-6 text-slate-500" }, "Arama yapmak için filtreleri kullanın."))
                         )
                     )
                 )
@@ -2395,23 +2547,31 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
 
         let totalIn = 0;
         let totalOut = 0;
+        let totalWaste = 0;
 
         fuelRecords.forEach(record => {
+            // General Inflow
             if (record.recordType === 'tankerDolum' && record.tankerPlate === selectedPlate) {
                 totalIn += record.fuelAmount;
             }
             if (record.recordType === 'tankerTransfer' && record.receivingTankerPlate === selectedPlate) {
                 totalIn += record.fuelAmount;
             }
+            
+            // Outflow and Waste (Driver check)
             if (record.recordType === 'personnel' && record.locationType === 'Tanker' && record.location === selectedPlate) {
-                totalOut += record.fuelAmount;
+                if (record.jobTitle === 'Şoför') {
+                    totalWaste += record.fuelAmount;
+                } else {
+                    totalOut += record.fuelAmount;
+                }
             }
             if (record.recordType === 'tankerTransfer' && record.fillingTankerPlate === selectedPlate) {
                 totalOut += record.fuelAmount;
             }
         });
 
-        const remaining = totalIn - totalOut;
+        const remaining = totalIn - totalOut - totalWaste;
         const capacity = selectedTanker.capacity || 0;
         const percentage = capacity > 0 ? (remaining / capacity) * 100 : 0;
 
@@ -2420,6 +2580,7 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
             capacity: capacity,
             totalIn,
             totalOut,
+            totalWaste,
             remaining,
             percentage: Math.max(0, Math.min(100, percentage))
         });
@@ -2455,6 +2616,7 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
                     React.createElement("p", { className: "text-slate-600" }, React.createElement("strong", null, "Kapasite: "), report.capacity.toLocaleString('tr-TR'), " lt"),
                     React.createElement("p", { className: "text-green-600" }, React.createElement("strong", null, "Toplam Giren Yakıt: "), report.totalIn.toLocaleString('tr-TR'), " lt"),
                     React.createElement("p", { className: "text-red-600" }, React.createElement("strong", null, "Toplam Çıkan Yakıt: "), report.totalOut.toLocaleString('tr-TR'), " lt"),
+                    React.createElement("p", { className: "text-orange-600" }, React.createElement("strong", null, "Toplam Atık Yakıt: "), report.totalWaste.toLocaleString('tr-TR'), " lt"),
                     React.createElement("p", { className: "text-ogm-green-700 font-bold" }, React.createElement("strong", null, "Mevcut Yakıt: "), report.remaining.toLocaleString('tr-TR'), " lt")
                 ),
                 React.createElement("div", { className: "pt-4" },
@@ -2598,6 +2760,11 @@ const ReceiptBookManagement = ({ receiptBooks, tankerData, onUpdate, showMessage
         showMessage('Kayıt silindi.', 'success');
     };
 
+    const handleExport = () => {
+        exportTableToExcel('kocan-table-export', 'kocan_takibi');
+        showMessage("Rapor Excel olarak başarıyla oluşturuldu.", 'success');
+    };
+
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("div", { className: "p-4 bg-black/5 rounded-lg border border-slate-200 space-y-4" },
@@ -2625,21 +2792,26 @@ const ReceiptBookManagement = ({ receiptBooks, tankerData, onUpdate, showMessage
                 )
             ),
             React.createElement("div", null,
-                React.createElement("h3", { className: "text-lg font-semibold text-slate-700 mb-2" }, "Mevcut Koçan Serileri"),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
-                        React.createElement("thead", { className: "bg-slate-100" },
+                React.createElement("div", { className: "flex justify-between items-center mb-2" },
+                    React.createElement("h3", { className: "text-lg font-semibold text-slate-700" }, "Mevcut Koçan Serileri"),
+                    receiptBooks.length > 0 && React.createElement("button", { onClick: handleExport, className: "p-2 bg-green-600 text-white rounded-md hover:bg-green-700" },
+                         React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" }))
+                    )
+                ),
+                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-md" },
+                    React.createElement("table", { id: "kocan-table-export", className: "excel-table" },
+                        React.createElement("thead", null,
                             React.createElement("tr", null,
-                                ['Tanker Plakası', 'Başlangıç No', 'Bitiş No', 'İşlem'].map(h => React.createElement("th", { key: h, className: "p-3 text-left font-semibold text-slate-600" }, h))
+                                ['Tanker Plakası', 'Başlangıç No', 'Bitiş No', 'İşlem'].map(h => React.createElement("th", { key: h }, h))
                             )
                         ),
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             receiptBooks.map(book => (
                                 React.createElement("tr", { key: book.id },
-                                    React.createElement("td", { className: "p-3" }, book.tankerPlate),
-                                    React.createElement("td", { className: "p-3" }, book.startSerial),
-                                    React.createElement("td", { className: "p-3" }, book.endSerial),
-                                    React.createElement("td", { className: "p-3" }, 
+                                    React.createElement("td", { className: "text-left" }, book.tankerPlate),
+                                    React.createElement("td", { className: "text-right" }, book.startSerial),
+                                    React.createElement("td", { className: "text-right" }, book.endSerial),
+                                    React.createElement("td", { "data-exclude": "true", className: "text-left" }, 
                                         React.createElement("button", { onClick: () => handleDelete(book.id), className: "text-red-500 hover:text-red-700 font-semibold" }, "Sil")
                                     )
                                 )
@@ -2657,8 +2829,8 @@ const ReceiptBookManagement = ({ receiptBooks, tankerData, onUpdate, showMessage
 const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMessage }) => {
     const today = new Date();
     const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, 4, 1).toISOString().split('T')[0]; // May 1st
-    const lastDay = new Date(currentYear, 9, 31).toISOString().split('T')[0]; // October 31st
+    const firstDay = new Date(currentYear, 0, 1).toISOString().split('T')[0]; // Jan 1st
+    const lastDay = new Date(currentYear, 11, 31).toISOString().split('T')[0]; // Dec 31st
 
     const [dateRange, setDateRange] = useState({ start: firstDay, end: lastDay });
     const [tankerPlateFilter, setTankerPlateFilter] = useState('');
@@ -2679,16 +2851,40 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
         
         // Kayıtları plakaya göre önceden grupluyoruz
         const recordsByPlate = {};
+
         filteredRecords.forEach(record => {
-            let plate;
-            if (record.recordType === 'personnel' && record.locationType === 'Tanker') {
-                plate = record.location;
-            } else if (record.recordType === 'tankerTransfer') {
-                plate = record.fillingTankerPlate;
-            }
-            if (plate) {
-                if (!recordsByPlate[plate]) recordsByPlate[plate] = [];
-                recordsByPlate[plate].push(record);
+            const matches = String(record.receiptNumber || '').match(/\d+/g);
+            if (matches) {
+                for (const m of matches) {
+                    const val = parseInt(m, 10);
+                    // Bu seri numarası hangi plakaya tanımlı?
+                    const actualOwnerBook = receiptBooks.find(b => val >= b.startSerial && val <= b.endSerial);
+                    if (actualOwnerBook) {
+                        const ownerPlate = actualOwnerBook.tankerPlate;
+                        if (!recordsByPlate[ownerPlate]) recordsByPlate[ownerPlate] = [];
+                        
+                        let enteredPlate = "";
+                        if (record.recordType === 'personnel' && record.locationType === 'Tanker') {
+                            enteredPlate = record.location;
+                        } else if (record.recordType === 'tankerTransfer') {
+                            enteredPlate = record.fillingTankerPlate;
+                        } else if (record.recordType === 'tankerDolum') {
+                            enteredPlate = record.tankerPlate;
+                        }
+
+                        let crossTankerNote = "";
+                        if (enteredPlate && enteredPlate !== ownerPlate) {
+                            crossTankerNote = `Bu makbuz koçan seri no ${ownerPlate} plakasına ait olmasına rağmen ${enteredPlate} sistemden tanker plaka seçilerek makbuz girişi olmuştur.`;
+                        }
+
+                        recordsByPlate[ownerPlate].push({
+                            ...record, 
+                            matchedSerial: val, 
+                            crossTankerNote: crossTankerNote
+                        });
+                        break;
+                    }
+                }
             }
         });
 
@@ -2723,27 +2919,10 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
                 const usedRecords = {};
 
                 tankerRecords.forEach(record => {
-                    // MAKBUZ NUMARASI ÇÖZÜMLEME: Metin içindeki tüm sayıları tara ve tanımlı koçan aralıklarına uyanı bul
-                    const matches = String(record.receiptNumber || '').match(/\d+/g);
-                    if (matches) {
-                        let serial = NaN;
-                        // Tanımlı aralıklardan birine uyan bir sayı grubu var mı kontrol et
-                        for (const m of matches) {
-                            const val = parseInt(m, 10);
-                            if (assignedBooks.some(b => val >= b.startSerial && val <= b.endSerial)) {
-                                serial = val;
-                                break;
-                            }
-                        }
-                        // Eğer aralığa uyan spesifik bir sayı bulunamadıysa, son sayı grubunu varsayılan al
-                        if (isNaN(serial)) {
-                            serial = parseInt(matches[matches.length - 1], 10);
-                        }
-
-                        if (!isNaN(serial)) {
-                            usedSerials.add(serial);
-                            usedRecords[serial] = record;
-                        }
+                    const serial = record.matchedSerial;
+                    if (serial && assignedBooks.some(b => serial >= b.startSerial && serial <= b.endSerial)) {
+                        usedSerials.add(serial);
+                        usedRecords[serial] = record;
                     }
                 });
 
@@ -2796,45 +2975,19 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
             return;
         }
 
-        const dataForExcel = [];
-        dataForExcel.push(['Bölge', 'Tanker Plakası', 'Durum', 'Eksik Sayısı', 'Atanan Koçanlar', 'Eksik Seriler']);
-
-        Object.keys(report).sort().forEach(region => {
-            report[region].forEach(tankerReport => {
-                const books = tankerReport.details.assignedBooks.map(b => `${b.startSerial}-${b.endSerial}`).join(', ');
-                const missing = tankerReport.details.missingSerials.join(', ');
-                
-                let statusText = '';
-                if (tankerReport.status === 'no_books_assigned') statusText = 'Koçan Atanmamış';
-                else if (tankerReport.status === 'not_used') statusText = 'Koçan Kullanılmadı';
-                else if (tankerReport.missingCount > 0) statusText = `${tankerReport.missingCount} Eksik`;
-                else statusText = 'Eksik Yok';
-
-                dataForExcel.push([
-                    region,
-                    tankerReport.plate,
-                    statusText,
-                    tankerReport.missingCount,
-                    books,
-                    missing
-                ]);
-            });
+        const wb = XLSX.utils.book_new();
+        Object.keys(report).forEach(region => {
+            const tableId = `takip-table-${region.replace(/\s/g, '-')}`;
+            const table = document.getElementById(tableId);
+            if (table) {
+                const ws = XLSX.utils.table_to_sheet(table);
+                XLSX.utils.book_append_sheet(wb, ws, region.substring(0, 31));
+            }
         });
-
-        const worksheet = XLSX.utils.aoa_to_sheet(dataForExcel);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Makbuz Takip Raporu');
-        XLSX.writeFile(workbook, `Makbuz_Takip_${dateRange.start}_${dateRange.end}.xlsx`);
+        XLSX.writeFile(wb, "bolge_tankeri_makbuz_takibi.xlsx");
         showMessage("Excel dosyası indirildi.", 'success');
     };
     
-    const getButtonClass = (tankerReport) => {
-        if (tankerReport.missingCount > 0) return 'bg-red-500 text-white animate-blinker';
-        if (tankerReport.status === 'not_used') return 'bg-slate-400 text-white';
-        if (tankerReport.status === 'no_books_assigned') return 'bg-slate-200 text-slate-600';
-        return 'bg-green-100 text-green-800';
-    };
-
     const getButtonText = (tankerReport) => {
         if (tankerReport.missingCount > 0) return `${tankerReport.missingCount} eksik`;
         if (tankerReport.status === 'not_used') return 'Koçan Kullanılmadı';
@@ -2854,8 +3007,9 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
                     serials.push({
                         serial: i,
                         status: 'Kullanıldı',
-                        receiptDate: formatDisplayDateOnly(record.date),
-                        recordDate: formatDisplayDate(record.kayitNumarasi),
+                        receiptDate: record.date ? formatDisplayDateOnly(record.date) : '-',
+                        recordDate: record.kayitNumarasi ? formatDisplayDate(record.kayitNumarasi) : '-',
+                        note: record.crossTankerNote || "-",
                         statusColor: 'text-green-600'
                     });
                 } else if (missingSerials.includes(i)) {
@@ -2864,6 +3018,7 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
                         status: 'Eksik',
                         receiptDate: '-',
                         recordDate: '-',
+                        note: "-",
                         statusColor: 'text-red-600 font-bold'
                     });
                 } else {
@@ -2872,6 +3027,7 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
                         status: 'Kullanılmadı',
                         receiptDate: '-',
                         recordDate: '-',
+                        note: "-",
                         statusColor: 'text-slate-500'
                     });
                 }
@@ -2910,27 +3066,38 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
             report ? (
                  React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "flex justify-end" },
-                        React.createElement("button", { onClick: exportToExcel, className: "py-2 px-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 flex items-center gap-2" },
+                        React.createElement("button", { onClick: exportToExcel, className: "py-2 px-4 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700 flex items-center gap-2 shadow-sm" },
                              React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" })),
                              "Excel İndir"
                         )
                     ),
                     Object.keys(report).sort().map(region => (
-                        React.createElement("div", { key: region, className: "p-4 border rounded-lg bg-white" },
+                        React.createElement("div", { key: region, className: "p-4 border rounded-lg bg-white shadow-sm" },
                             React.createElement("h3", { className: "text-lg font-bold text-slate-800 mb-3" }, region),
-                            React.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" },
-                                report[region].map(tankerReport => (
-                                    React.createElement("button", {
-                                        key: tankerReport.plate,
-                                        onDoubleClick: () => tankerReport.status !== 'no_books_assigned' && setModalData(tankerReport),
-                                        className: `p-3 rounded-lg text-center font-semibold transition-all duration-300 shadow-sm ${
-                                            getButtonClass(tankerReport)
-                                        } ${tankerReport.status !== 'no_books_assigned' ? 'cursor-pointer' : 'cursor-default'}`
-                                    },
-                                        React.createElement("p", { className: "text-base" }, tankerReport.plate),
-                                        React.createElement("p", { className: "text-xs mt-1" }, getButtonText(tankerReport))
+                            React.createElement("div", { className: "overflow-x-auto border border-slate-300 rounded-lg shadow-md" },
+                                React.createElement("table", { id: `takip-table-${region.replace(/\s/g, '-')}`, className: "excel-table" },
+                                    React.createElement("thead", null,
+                                        React.createElement("tr", null,
+                                            ['Tanker Plakası', 'Durum', 'Eksik Sayısı', 'Atanan Koçanlar'].map(header => (
+                                                React.createElement("th", { key: header }, header)
+                                            ))
+                                        )
+                                    ),
+                                    React.createElement("tbody", null,
+                                        report[region].map(tankerReport => (
+                                            React.createElement("tr", { 
+                                                key: tankerReport.plate, 
+                                                onDoubleClick: () => tankerReport.status !== 'no_books_assigned' && setModalData(tankerReport), 
+                                                className: "hover:bg-slate-50 cursor-pointer" 
+                                            },
+                                                React.createElement("td", { className: "text-left" }, tankerReport.plate),
+                                                React.createElement("td", { className: "text-left " + (tankerReport.missingCount > 0 ? 'text-red-600 font-bold' : (tankerReport.status === 'not_used' ? 'text-slate-400' : 'text-green-600')) }, getButtonText(tankerReport)),
+                                                React.createElement("td", { className: "text-right" }, tankerReport.missingCount),
+                                                React.createElement("td", { className: "text-left" }, tankerReport.details.assignedBooks.map(b => `${b.startSerial}-${b.endSerial}`).join(', '))
+                                            )
+                                        ))
                                     )
-                                ))
+                                )
                             )
                         )
                     ))
@@ -2943,22 +3110,24 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
                      React.createElement("p", {className: "mb-2 text-sm text-slate-600"}, React.createElement("strong", null, "Atanan Koçanlar: "), modalData.details.assignedBooks.map(b => `${b.startSerial}-${b.endSerial}`).join(', ')),
                      React.createElement("p", {className: "mb-4 text-sm text-slate-600"}, `${formatDisplayDateOnly(dateRange.start)} - ${formatDisplayDateOnly(dateRange.end)} tarih aralığı raporu:`),
                      allSerialsDetails.length > 0 ? (
-                        React.createElement("div", {className: "max-h-80 overflow-y-auto bg-slate-100 rounded-md border text-sm"},
-                            React.createElement("table", {className: "min-w-full"},
-                                React.createElement("thead", {className: "sticky top-0 bg-slate-200"},
+                        React.createElement("div", {className: "max-h-80 overflow-y-auto bg-slate-100 rounded-md border text-sm shadow-inner"},
+                            React.createElement("table", {className: "excel-table"},
+                                React.createElement("thead", {className: "sticky top-0"},
                                     React.createElement("tr", null,
-                                        React.createElement("th", {className: "p-2 text-left font-semibold"}, "Seri No"),
-                                        React.createElement("th", {className: "p-2 text-left font-semibold"}, "Durum"),
-                                        React.createElement("th", {className: "p-2 text-left font-semibold"}, "Makbuz Tarihi"),
-                                        React.createElement("th", {className: "p-2 text-left font-semibold"}, "Kayıt Tarihi")
+                                        React.createElement("th", {className: "text-left"}, "Seri Aralığı"),
+                                        React.createElement("th", {className: "text-left"}, "Durum"),
+                                        React.createElement("th", {className: "text-left"}, "Makbuz Tarihi"),
+                                        React.createElement("th", {className: "text-left"}, "Kayıt Tarihi"),
+                                        React.createElement("th", {className: "text-left"}, "Açıklama / Not")
                                     )
                                 ),
                                 React.createElement("tbody", {className: "divide-y divide-slate-300"},
-                                    allSerialsDetails.map(detail => React.createElement("tr", {key: detail.serial, className: "bg-white"},
-                                        React.createElement("td", {className: "p-2"}, detail.serial),
-                                        React.createElement("td", {className: `p-2 ${detail.statusColor}`}, detail.status),
-                                        React.createElement("td", {className: "p-2"}, detail.receiptDate),
-                                        React.createElement("td", {className: "p-2"}, detail.recordDate)
+                                    allSerialsDetails.map(detail => React.createElement("tr", {key: detail.serial, className: "bg-white hover:bg-slate-50"},
+                                        React.createElement("td", {className: "text-right"}, detail.serial),
+                                        React.createElement("td", {className: `text-left ${detail.statusColor}`}, detail.status),
+                                        React.createElement("td", { className: "text-left" }, detail.receiptDate),
+                                        React.createElement("td", { className: "text-left" }, detail.recordDate),
+                                        React.createElement("td", { className: "text-left text-xs italic" }, detail.note)
                                     ))
                                 )
                            )
@@ -3021,9 +3190,9 @@ const AdminPanel = (props) => {
                 ["06 TR 123", "ADANA", "ÖZEL FIRMA", "20000"]
             ],
             "personnel verisi": [
-                ["Adı Soyadı", "Mesleği"],
-                ["AHMET YILMAZ", "Pilot"],
-                ["MEHMET DEMİR", "Şoför"]
+                ["Adı Soyadı", "Mesleği", "Kurum"],
+                ["AHMET YILMAZ", "Pilot", "OGM"],
+                ["MEHMET DEMİR", "Şoför", "KİRALIK"]
             ],
             "hava limanı verisi": [
                 ["Hava Limanı Adı", "Tipi"],
@@ -3088,7 +3257,7 @@ const AdminPanel = (props) => {
                         const newPersonnelList = json.map((row, index) => {
                             const name = String(row["Adı Soyadı"] || "").trim();
                             if(!name) return null;
-                            return { id: `file-personnel-${Date.now()}-${index}`, name: name, job: String(row["Mesleği"] || "Pilot").trim() };
+                            return { id: `file-personnel-${Date.now()}-${index}`, name: name, job: String(row["Mesleği"] || "Pilot").trim(), company: String(row["Kurum"] || "").trim() };
                         }).filter(Boolean);
                         if (newPersonnelList.length > 0) {
                             updates.personnelList = [...props.personnelList, ...newPersonnelList];
@@ -3189,7 +3358,7 @@ const AdminPanel = (props) => {
                         React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", clipRule: "evenodd" }))
                     ),
                      React.createElement(NavButton, { label: "Ayarlar", onClick: () => setActiveModule('settings'), isActive: activeModule === 'settings' },
-                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" }), React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }))
+                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" }), React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }))
                     )
                 ),
                 React.createElement(UserInfo, { user: props.currentUser })
@@ -3216,6 +3385,7 @@ const normalizeSheetRecord = (rec, allPersonnel) => {
         kayitNumarasi: rec['Kayıt No'] || generateRecordNumber(), // Fallback for older data
         date: parseSheetDate(rec['Tarih']),
         receiptNumber: rec['Makbuz Numarası'],
+        receiptType: rec['Makbuz Tipi'] || '',
         fuelAmount: parseFloat(String(rec['Yakıt Miktarı (lt)'] || '0').replace(',', '.')) || 0,
     };
     
@@ -3259,6 +3429,7 @@ const deNormalizeRecord = (record) => {
         'Tarih': record.date || '',
         'Kayıt Tipi': '',
         'Makbuz Numarası': record.receiptNumber || '',
+        'Makbuz Tipi': record.receiptType || '-',
         'Yakıt Miktarı (lt)': record.fuelAmount || 0,
         'Kuyruk Numarası': '',
         'Personel Adı': '',
@@ -3270,10 +3441,9 @@ const deNormalizeRecord = (record) => {
         'Dolum Yapılan Hava Limanı': '',
         'Yakıtı Alan Tanker Plakası': '',
         'Yakıtı Veren Tanker Plakası': '',
+        'Kayıt No': record.kayitNumarasi || ''
     };
     
-    denormalized['Kayıt No'] = record.kayitNumarasi || '';
-
     if (record.recordType === 'personnel') {
         denormalized['Kayıt Tipi'] = 'Hava Aracı İkmal';
         denormalized['Kuyruk Numarası'] = record.tailNumber || '';
@@ -3459,6 +3629,7 @@ const App = () => {
             id: `personnel-req-${Date.now()}`,
             name: request.name,
             job: request.job,
+            company: request.company,
             timestamp: new Date().toISOString()
         };
         await postData('onAddPersonnelRequest', requestWithTimestamp);
