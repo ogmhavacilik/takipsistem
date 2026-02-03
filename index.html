@@ -274,13 +274,19 @@ const formatDisplayDateOnly = (dateString) => {
     });
 };
 
+const formatLocalISO = (d) => {
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+};
+
 const parseSheetDate = (dateValue) => {
     if (dateValue === null || dateValue === undefined) return null;
 
     if (typeof dateValue === 'number' && dateValue > 1) {
         const utcDate = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
         const localDate = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
-        return localDate.toISOString().split('T')[0];
+        return formatLocalISO(localDate);
     }
 
     const dateStr = String(dateValue);
@@ -298,7 +304,7 @@ const parseSheetDate = (dateValue) => {
         }
     }
 
-    return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+    return isNaN(date.getTime()) ? null : formatLocalISO(date);
 };
 
 const exportTableToExcel = (tableId, filename) => {
