@@ -53,6 +53,16 @@
       .animate-blinker {
         animation: blinker 1.5s linear infinite;
       }
+      /* duplicate warning animations */
+      @keyframes orangeBlink {
+        0% { opacity: 1; }
+        50% { opacity: 0.3; }
+        100% { opacity: 1; }
+      }
+      .duplicate-warning {
+        background-color: rgba(255, 165, 0, 0.15) !important;
+        animation: orangeBlink 1s infinite;
+      }
       /* Excel style table fixes */
       .excel-table {
         border-collapse: collapse;
@@ -1338,7 +1348,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                         React.createElement("thead", { className: "bg-slate-100" },
                             React.createElement("tr", null,
                                 ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz Numarası', 'Kuyruk No', 'Kart No', 'Yakıt (lt)'].map(header => (
-                                    React.createElement("th", { key: header, className: "p-3 text-left font-semibold text-slate-600" }, header)
+                                    React.createElement("th", { key: header }, header)
                                 ))
                             )
                         ),
@@ -1489,7 +1499,7 @@ const AdminLogin = ({ onLoginSuccess, showMessage, adminCredentials }) => {
             React.createElement("h3", { className: "text-2xl font-semibold text-slate-700 mb-6" }, "Yönetici Girişi"),
             React.createElement("div", { className: "w-full space-y-4" },
                 React.createElement("div", null,
-                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Kullanıcı Adı:"),
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Kullanıcı Adı:"),
                     React.createElement("input", {
                         type: "text",
                         value: username,
@@ -2350,6 +2360,11 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
     const [editingRecord, setEditingRecord] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
 
+    // Mükerrer yönetimi için state'ler
+    const [autoDeletedRecord, setAutoDeletedRecord] = useState(null);
+    const [conflictData, setConflictData] = useState(null);
+    const [deletedReceipts, setDeletedReceipts] = useState([]);
+
     const filterOptions = useMemo(() => {
         const tailNumbers = [...new Set(fuelRecords.map(r => r.tailNumber).filter(Boolean))].sort();
         const aircraftTypes = [...new Set(aircraftData.map(a => a.aircraftType))].sort();
@@ -2385,13 +2400,80 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         });
     }
 
+    const normalizeNum = (n) => String(n || '').replace(/[\s-]/g, '').toUpperCase();
+    const normalizeFuel = (f) => Number(String(f || 0).replace(',', '.'));
+
     const handleSearch = () => {
         const filtered = runFilter();
         if (filtered.length === 0) {
             showMessage('Filtrelerle eşleşen veri bulunamadı.', 'error');
+            setDisplayedRecords([]);
+            return;
         }
-        setDisplayedRecords(filtered);
+
+        // Mükerrer analizi
+        const normGroups = {};
+        const finalResults = [];
+        const localAutoDeleted = [];
+        const localConflicts = [];
+
+        // Önce çelişki flaglerini temizle
+        filtered.forEach(r => delete r.isConflict);
+
+        filtered.forEach(record => {
+            const nNum = normalizeNum(record.receiptNumber);
+            const nFuel = normalizeFuel(record.fuelAmount);
+
+            if (!normGroups[nNum]) {
+                normGroups[nNum] = [record];
+                finalResults.push(record);
+            } else {
+                const existingInGroup = normGroups[nNum];
+                const exactMatch = existingInGroup.find(r => normalizeFuel(r.fuelAmount) === nFuel);
+
+                if (exactMatch) {
+                    // KURAL 1: Tam mükerrer - otomatik sil
+                    localAutoDeleted.push(record);
+                    // Master list'ten sil
+                    onUpdateFuelRecords(fuelRecords.filter(fr => fr.id !== record.id));
+                } else {
+                    // KURAL 2: Makbuz aynı yakıt farklı - çelişki
+                    record.isConflict = true;
+                    existingInGroup.forEach(r => r.isConflict = true);
+                    localConflicts.push({ existing: existingInGroup[0], incoming: record });
+                    finalResults.push(record);
+                }
+            }
+        });
+
+        if (localAutoDeleted.length > 0) {
+            setDeletedReceipts(prev => [...prev, ...localAutoDeleted]);
+            setAutoDeletedRecord(localAutoDeleted[0]);
+        }
+        if (localConflicts.length > 0) {
+            setConflictData(localConflicts[0]);
+        }
+
+        setDisplayedRecords(finalResults);
         setSelectedIds(new Set());
+    };
+
+    const handleUndoAutoDelete = () => {
+        if (!autoDeletedRecord) return;
+        const restored = autoDeletedRecord;
+        onUpdateFuelRecords([...fuelRecords, restored]);
+        setDisplayedRecords(prev => [...prev, restored]);
+        setDeletedReceipts(prev => prev.filter(d => d.id !== restored.id));
+        setAutoDeletedRecord(null);
+        showMessage('Mükerrer kayıt geri yüklendi.', 'success');
+    };
+
+    const handleResolveConflict = (idToRemove) => {
+        const updated = fuelRecords.filter(r => r.id !== idToRemove);
+        onUpdateFuelRecords(updated);
+        setDisplayedRecords(prev => prev.filter(r => r.id !== idToRemove));
+        setConflictData(null);
+        showMessage('Kayıt silindi ve çelişki giderildi.', 'success');
     };
 
     const handleDeleteSelected = () => {
@@ -2461,7 +2543,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         showMessage(`Rapor ${format.toUpperCase()} olarak başarıyla oluşturuldu.`, 'success');
     };
 
-
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("h2", { className: "text-xl font-semibold text-slate-700" }, "Makbuz Yönetimi"),
@@ -2503,7 +2584,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         ),
                         React.createElement("tbody", null,
                             displayedRecords.length > 0 ? displayedRecords.map(record => (
-                                React.createElement("tr", { key: record.id, className: "hover:bg-slate-50 cursor-pointer" },
+                                React.createElement("tr", { key: record.id, className: `hover:bg-slate-50 cursor-pointer ${record.isConflict ? 'duplicate-warning' : ''}` },
                                     React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(record.id), onChange: () => handleSelect(record.id) })),
                                     React.createElement("td", { className: "text-left" }, formatDisplayDate(record.kayitNumarasi)),
                                     React.createElement("td", { className: "text-left" }, formatDisplayDateOnly(record.date)),
@@ -2517,7 +2598,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                     React.createElement("td", { className: "text-left" }, record.receiptType || '-'),
                                     React.createElement("td", { className: "text-left" }, record.tailNumber || '-'),
                                     React.createElement("td", { className: "text-left" }, record.cardNumber || '-'),
-                                    React.createElement("td", { className: "text-right" }, record.fuelAmount.toFixed(2)),
+                                    React.createElement("td", { className: "text-right font-bold" }, record.fuelAmount.toFixed(2)),
                                     React.createElement("td", { className: "text-left" },
                                         (() => {
                                             const link = getReceiptLink(record);
@@ -2526,6 +2607,42 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                     )
                                 )
                             )) : React.createElement("tr", null, React.createElement("td", { colSpan: 13, className: "text-center p-6 text-slate-500" }, "Arama yapmak için filtreleri kullanın."))
+                        )
+                    )
+                )
+            ),
+            // Popup'lar
+            autoDeletedRecord && React.createElement(Modal, { isOpen: true, onClose: () => setAutoDeletedRecord(null), title: "⚠️ Otomatik mükerrer kayıt silindi" },
+                React.createElement("div", { className: "space-y-4" },
+                    React.createElement("div", { className: "text-sm space-y-1" },
+                        React.createElement("p", null, React.createElement("strong", null, "Kayıt No:"), " ", formatDisplayDate(autoDeletedRecord.kayitNumarasi)),
+                        React.createElement("p", null, React.createElement("strong", null, "Tarih:"), " ", formatDisplayDateOnly(autoDeletedRecord.date)),
+                        React.createElement("p", null, React.createElement("strong", null, "Personel:"), " ", autoDeletedRecord.personnelName),
+                        React.createElement("p", null, React.createElement("strong", null, "Makbuz No:"), " ", autoDeletedRecord.receiptNumber),
+                        React.createElement("p", null, React.createElement("strong", null, "Yakıt (lt):"), " ", autoDeletedRecord.fuelAmount)
+                    ),
+                    React.createElement("div", { className: "flex justify-end gap-3" },
+                        React.createElement("button", { onClick: handleUndoAutoDelete, className: "py-2 px-4 bg-ogm-green-600 text-white rounded-lg font-semibold" }, "Geri Al"),
+                        React.createElement("button", { onClick: () => setAutoDeletedRecord(null), className: "py-2 px-4 bg-slate-200 rounded-lg" }, "Kapat")
+                    )
+                )
+            ),
+            conflictData && React.createElement(Modal, { isOpen: true, onClose: () => setConflictData(null), title: "⚠️ Makbuz Numarası Aynı Fakat Yakıt Farklı" },
+                React.createElement("div", { className: "space-y-6" },
+                    React.createElement("p", { className: "text-slate-600" }, "Lütfen silinecek kaydı seçiniz:"),
+                    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                        [conflictData.existing, conflictData.incoming].map((r, idx) => 
+                            React.createElement("div", { key: r.id, className: "p-4 border-2 border-slate-200 rounded-xl hover:border-red-500 cursor-pointer transition-all", onClick: () => handleResolveConflict(r.id) },
+                                React.createElement("div", { className: "text-xs font-bold text-slate-400 uppercase mb-2" }, idx === 0 ? "Sistemdeki Kayıt" : "Yeni Girilen Kayıt"),
+                                React.createElement("div", { className: "text-sm space-y-1" },
+                                    React.createElement("p", null, React.createElement("strong", null, "Tarih:"), " ", formatDisplayDateOnly(r.date)),
+                                    React.createElement("p", null, React.createElement("strong", null, "Yakıt:"), " ", r.fuelAmount, " lt"),
+                                    React.createElement("p", null, React.createElement("strong", null, "Makbuz:"), " ", r.receiptNumber),
+                                    React.createElement("div", { className: "pt-4" },
+                                        React.createElement("span", { className: "block w-full py-2 bg-red-50 text-red-700 text-center rounded-lg font-bold" }, "Bu Kaydı Sil")
+                                    )
+                                )
+                            )
                         )
                     )
                 )
