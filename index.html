@@ -53,15 +53,21 @@
       .animate-blinker {
         animation: blinker 1.5s linear infinite;
       }
-      /* duplicate warning animations */
-      @keyframes orangeBlink {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
+      /* Patch: Blinking Orange Animation */
+      @keyframes orangeBlinker {
+        0%, 100% { background-color: #f97316; box-shadow: 0 0 20px #f97316; color: white; }
+        50% { background-color: #fb923c; box-shadow: none; color: white; }
       }
-      .duplicate-warning {
-        background-color: rgba(255, 165, 0, 0.15) !important;
-        animation: orangeBlink 1s infinite;
+      .blink-orange {
+        animation: orangeBlinker 1s infinite !important;
+      }
+      /* Patch: Fuel Conflict Blink */
+      @keyframes fuelBlink {
+        0%, 100% { background-color: transparent; }
+        50% { background-color: #ef4444; color: white; font-weight: bold; }
+      }
+      .blink-conflict {
+        animation: fuelBlink 1s infinite !important;
       }
       /* Excel style table fixes */
       .excel-table {
@@ -131,7 +137,8 @@
     "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
     "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
   }
 }
 </script>
@@ -339,6 +346,18 @@ const exportTableToExcel = (tableId, filename) => {
         td.style.border = '1px solid #cbd5e1';
     });
 
+    // Patch: Export total to Excel
+    const body = clone.querySelector('tbody');
+    if (body) {
+        const rows = Array.from(body.querySelectorAll('tr'));
+        const total = rows.reduce((acc, row) => {
+            const valStr = row.cells[row.cells.length - (tableId.includes('makbuz') ? 2 : 1)]?.innerText || '0';
+            const val = parseFloat(valStr.replace(',', '.')) || 0;
+            return acc + val;
+        }, 0);
+        
+    }
+
     const html = clone.outerHTML;
     const blob = new Blob(['\ufeff', html], {
         type: 'application/vnd.ms-excel'
@@ -539,7 +558,7 @@ const Header = () => {
             React.createElement("div", { className: "flex items-center space-x-1 sm:space-x-4 ml-2 sm:ml-4" },
                 React.createElement("div", { className: "rounded-full embedded-shadow flex-shrink-0" },
                     React.createElement("img", {
-                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
+                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXRlNWZpNWQwajl5dnMzbnFieGJ6bmZpOW54NGg5YmFxY3NhbHQwbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
                         alt: "OGM Logo",
                         className: "h-14 w-14 sm:h-28 sm:w-28 rounded-full object-cover"
                     })
@@ -602,7 +621,7 @@ const Tabs = ({ activeView, setActiveView }) => {
 
 // From components/FuelEntryForm.tsx
 const InputField = (props) => (
-    React.createElement("input", { ...props, className: "w-full p-3 border border-slate-300 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-ogm-green-500" })
+    React.createElement("input", { ...props, className: `w-full p-3 border rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-ogm-green-500 ${props.className || 'border-slate-300'}` })
 );
 const SelectField = (props) => (
     React.createElement("select", { ...props, className: "w-full p-3 border border-slate-300 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-ogm-green-500 bg-white" })
@@ -644,6 +663,9 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
         return personnelList.find(p => p.id === formData.personnelId);
     }, [formData.personnelId, personnelList, isManualPersonnelEntry]);
 
+    const personnelCompany = (isManualPersonnelEntry ? manualPersonnel.company : selectedPersonnelObject?.company || "").toLowerCase().trim();
+    const isPersonnelOGM = personnelCompany.includes('ogm') || personnelCompany.includes('orman');
+
     const showReceiptTypeSelection = useMemo(() => {
         if (entryType !== 'personnel') return false;
         const companyValue = (selectedPersonnelObject?.company || (isManualPersonnelEntry ? manualPersonnel.company : "")).toUpperCase().trim();
@@ -678,7 +700,14 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'fuelAmount') {
+          let val = value.replace('.', ',');
+          if (/^[0-9]*,?[0-9]*$/.test(val)) {
+            setFormData(prev => ({ ...prev, [name]: val }));
+          }
+        } else {
+          setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleManualPersonnelChange = (e) => {
@@ -724,8 +753,10 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                         return formData.date && formData.personnelId;
                     case 2: return formData.locationType && formData.location;
                     case 3: return isMilitaryLocation ? formData.cardNumber : true;
-                    case 4: return !!(formData.receiptNumber && (shouldShowTailNumber ? !!formData.tailNumber : true));
-                    case 5: return parseFloat(formData.fuelAmount) > 0;
+                    case 4: 
+                        if (showReceiptTypeSelection && !formData.receiptType) return false;
+                        return !!(formData.receiptNumber && (shouldShowTailNumber ? !!formData.tailNumber : true));
+                    case 5: return parseFloat(String(formData.fuelAmount).replace(',', '.')) > 0;
                     default: return true;
                 }
             case 'tankerDolum':
@@ -733,7 +764,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     case 1: return formData.date && formData.tankerPlate;
                     case 2: return !!formData.airport;
                     case 3: return !!formData.receiptNumber;
-                    case 4: return parseFloat(formData.fuelAmount) > 0;
+                    case 4: return parseFloat(String(formData.fuelAmount).replace(',', '.')) > 0;
                     default: return true;
                 }
             case 'tankerTransfer':
@@ -741,7 +772,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     case 1: return formData.date && formData.receivingTankerPlate;
                     case 2: return !!formData.fillingTankerPlate;
                     case 3: return !!formData.receiptNumber;
-                    case 4: return parseFloat(formData.fuelAmount) > 0;
+                    case 4: return parseFloat(String(formData.fuelAmount).replace(',', '.')) > 0;
                     default: return true;
                 }
             default: return false;
@@ -755,6 +786,10 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                 next++;
             }
             setCurrentStep(next);
+        } else {
+          if (currentStep === 4 && showReceiptTypeSelection && !formData.receiptType) {
+             showMessage('Lütfen Makbuz Tipi seçiniz!', 'error');
+          }
         }
     };
 
@@ -772,20 +807,8 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
         setIsSubmitting(true);
 
         let recordToSave = {};
-        let redirectUrl = '';
         const kayitNumarasi = generateRecordNumber();
-
-        const ogmUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ";
-        const rentalAircraftUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
-        const rentalTankerUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
-
-        const ogmKurumMakbuzUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ";
-        const ogmKiralikHavaMakbuzUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
-        const kiralikTankerUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
-
         const finalJobTitleForSubmit = isManualPersonnelEntry ? manualPersonnel.job : formData.jobTitle;
-        const personnelCompany = (isManualPersonnelEntry ? manualPersonnel.company : selectedPersonnelObject?.company || "").toLowerCase().trim();
-        const isPersonnelOGM = personnelCompany.includes('ogm') || personnelCompany.includes('orman');
 
         if (entryType === 'personnel') {
             let formattedReceiptNumber = formData.receiptNumber;
@@ -811,29 +834,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                 }
             }
 
-            const selectedAircraft = aircraftData.find(a => a.tailNumber === formData.tailNumber);
-            const aircraftCompany = selectedAircraft?.company?.toLowerCase().trim() || '';
-            const isAircraftOGM = aircraftCompany.includes('ogm') || aircraftCompany.includes('orman');
-
-            const isPilotOrTech = finalJobTitleForSubmit === 'Pilot' || finalJobTitleForSubmit === 'Uçuş Teknisyeni';
-            const isDriver = finalJobTitleForSubmit === 'Şoför';
-
-            // New redirection logic for personnel entries
-            if (isDriver && isPersonnelOGM) {
-                redirectUrl = ogmKurumMakbuzUrl;
-            } else if (isPilotOrTech && (!isPersonnelOGM || !isAircraftOGM)) {
-                redirectUrl = ogmKiralikHavaMakbuzUrl;
-            } else if (isAircraftOGM) {
-                redirectUrl = ogmUrl;
-            } else {
-                redirectUrl = rentalAircraftUrl;
-            }
-
-            let finalPersonnelData = {
-                personnelName: isManualPersonnelEntry ? manualPersonnel.name : formData.personnelName,
-                jobTitle: finalJobTitleForSubmit
-            };
-
             if(isManualPersonnelEntry) {
                 await onAddPersonnelRequest({
                     name: manualPersonnel.name,
@@ -842,45 +842,24 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                 });
             }
 
-            let finalReceiptType = "-";
-            if (personnelCompany !== 'ogm' && personnelCompany !== 'orman' && isPilotOrTech) {
-                finalReceiptType = formData.receiptType || "-";
-            }
-
             recordToSave = {
                 ...formData,
-                ...finalPersonnelData,
-                fuelAmount: parseFloat(formData.fuelAmount) || 0,
+                personnelName: isManualPersonnelEntry ? manualPersonnel.name : formData.personnelName,
+                jobTitle: finalJobTitleForSubmit,
+                fuelAmount: Number(parseFloat(String(formData.fuelAmount).replace(',', '.'))) || 0,
                 kayitNumarasi,
                 receiptNumber: formattedReceiptNumber,
                 recordType: 'personnel',
-                receiptType: finalReceiptType
+                receiptType: (isPersonnelOGM ? "-" : (showReceiptTypeSelection ? formData.receiptType : "-"))
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
 
         } else if (entryType === 'tankerDolum' || entryType === 'tankerTransfer') {
-             const tankerPlateToCheck = entryType === 'tankerDolum' ? formData.tankerPlate : formData.fillingTankerPlate;
-             const tanker = tankerData.find(t => t.plate === tankerPlateToCheck);
-             const tankerCompany = tanker?.company?.toLowerCase().trim() || '';
-             const isTankerOGM = tankerCompany.includes('ogm') || tankerCompany.includes('orman');
-             const isDriver = finalJobTitleForSubmit === 'Şoför';
-             
-             // New redirection logic for tanker entries
-             if (isDriver && isPersonnelOGM && isTankerOGM) {
-                 redirectUrl = ogmKurumMakbuzUrl;
-             } else if (isDriver && !isPersonnelOGM && !isTankerOGM) {
-                 redirectUrl = kiralikTankerUrl;
-             } else if (isTankerOGM) {
-                 redirectUrl = ogmUrl;
-             } else {
-                 redirectUrl = rentalTankerUrl;
-             }
-
              if (entryType === 'tankerDolum') {
                 recordToSave = {
                     date: formData.date,
                     receiptNumber: formData.receiptNumber,
-                    fuelAmount: parseFloat(formData.fuelAmount) || 0,
+                    fuelAmount: Number(parseFloat(String(formData.fuelAmount).replace(',', '.'))) || 0,
                     tankerPlate: formData.tankerPlate,
                     location: formData.airport,
                     locationType: "Tanker Dolum",
@@ -893,7 +872,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                 recordToSave = {
                     date: formData.date,
                     receiptNumber: formData.receiptNumber,
-                    fuelAmount: parseFloat(formData.fuelAmount) || 0,
+                    fuelAmount: Number(parseFloat(String(formData.fuelAmount).replace(',', '.'))) || 0,
                     receivingTankerPlate: formData.receivingTankerPlate,
                     fillingTankerPlate: formData.fillingTankerPlate,
                     location: `${formData.fillingTankerPlate} -> ${formData.receivingTankerPlate}`,
@@ -908,10 +887,10 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
 
         try {
             await onAddRecord(recordToSave);
-            onStartRedirection(redirectUrl);
+            onStartRedirection("https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ");
         } catch (error) {
             console.error("Failed to submit record:", error);
-            showMessage('Kayıt gönderilemedi. Lütfen tekrar deneyin.', 'error');
+            showMessage('Kayıt gönderilemedi.', 'error');
             setIsSubmitting(false);
         }
     };
@@ -992,14 +971,17 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                             placeholder: "Tanker Plakası Seçiniz veya Arayınız"
                         })
                     ),
-                    formData.locationType === 'Hava Limanı/Alanı' && React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Konum (Hava Limanı/Alanı):"),
-                        React.createElement(AutocompleteSelect, {
-                            options: airportList.map(airport => ({ value: airport.name, label: airport.name })),
-                            value: formData.location,
-                            onChange: (value) => handleGenericSelect('location', value),
-                            placeholder: "Havalimanı Seçiniz veya Arayınız"
-                        })
+                    formData.locationType === 'Hava Limanı/Alanı' && React.createElement(React.Fragment, null,
+                        !isPersonnelOGM && React.createElement("p", { className: "text-red-600 font-semibold text-xs mb-2 p-2 bg-red-50 border border-red-200 rounded-lg" }, "Lütfen karşınızdaki ikmal personeli \"Askeri Personel\" ise hava limanı seçiminde parantez içinde (Askeri) yazdığından mutlaka emin olunuz. Eğer emin değilseniz ya da mevcut askeri hava limanı listede yok ise yöneticinize bildiriniz."),
+                        React.createElement("div", { className: "form-group" },
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Konum (Hava Limanı/Alanı):"),
+                            React.createElement(AutocompleteSelect, {
+                                options: airportList.map(airport => ({ value: airport.name, label: airport.name })),
+                                value: formData.location,
+                                onChange: (value) => handleGenericSelect('location', value),
+                                placeholder: "Havalimanı Seçiniz veya Arayınız"
+                            })
+                        )
                     ));
             case 3:
                 if (!isMilitaryLocation) return null;
@@ -1042,12 +1024,15 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                                 React.createElement("span", null, type)
                             )
                         ))
-                    ));
+                    ),
+                    showReceiptTypeSelection && !formData.receiptType && React.createElement("p", { className: "text-red-500 text-xs font-bold animate-pulse" }, "* Makbuz tipi seçimi zorunludur")
+                );
             case 5:
                 return React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "form-group" },
                         React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "Çıkan Atık Yakıt Miktarı (lt):" : "Alınan Yakıt Miktarı (lt):"),
-                        React.createElement(InputField, { type: "number", name: "fuelAmount", value: formData.fuelAmount, onChange: e => setFormData(prev => ({ ...prev, fuelAmount: e.target.value })), step: "0.01", min: "0", placeholder: "Örn: 500.75", required: true })
+                        React.createElement(InputField, { type: "text", name: "fuelAmount", value: formData.fuelAmount, onChange: handleChange, placeholder: "Örn: 135,50", required: true }),
+                        React.createElement("p", { className: "text-xs text-slate-500 italic" }, "* Lütfen virgül (,) kullanarak giriniz. Nokta (.) girilirse otomatik dönüştürülecektir.")
                     )
                 );
             default: return null;
@@ -1085,17 +1070,15 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     )
                 );
             case 3:
-                return React.createElement("div", { className: "space-y-4" },
-                    React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Makbuz Numarası:"),
-                        React.createElement(InputField, { type: "text", name: "receiptNumber", value: formData.receiptNumber, onChange: handleChange, placeholder: "Örn: 123456789", required: true })
-                    )
+                return React.createElement("div", { className: "form-group" },
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Makbuz Numarası:"),
+                    React.createElement(InputField, { type: "text", name: "receiptNumber", value: formData.receiptNumber, onChange: handleChange, placeholder: "Örn: 123456789", required: true })
                 );
             case 4:
                 return React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "form-group" },
                         React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Alınan Yakıt Miktarı (lt):"),
-                        React.createElement(InputField, { type: "number", name: "fuelAmount", value: formData.fuelAmount, onChange: e => setFormData(prev => ({ ...prev, fuelAmount: e.target.value })), step: "0.01", min: "0", placeholder: "Örn: 500.75", required: true })
+                        React.createElement(InputField, { type: "text", name: "fuelAmount", value: formData.fuelAmount, onChange: handleChange, placeholder: "Örn: 135,50", required: true })
                     )
                 );
             default: return null;
@@ -1135,17 +1118,15 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     )
                 );
             case 3:
-                return React.createElement("div", { className: "space-y-4" },
-                    React.createElement("div", { className: "form-group" },
-                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Makbuz Numarası:"),
-                        React.createElement(InputField, { type: "text", name: "receiptNumber", value: formData.receiptNumber, onChange: handleChange, placeholder: "Örn: 123456789", required: true })
-                    )
+                return React.createElement("div", { className: "form-group" },
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Makbuz Numarası:"),
+                    React.createElement(InputField, { type: "text", name: "receiptNumber", value: formData.receiptNumber, onChange: handleChange, placeholder: "Örn: 123456789", required: true })
                 );
             case 4:
                 return React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "form-group" },
                         React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Transfer Edilen Yakıt Miktarı (lt):"),
-                        React.createElement(InputField, { type: "number", name: "fuelAmount", value: formData.fuelAmount, onChange: e => setFormData(prev => ({ ...prev, fuelAmount: e.target.value })), step: "0.01", min: "0", placeholder: "Örn: 500.75", required: true })
+                        React.createElement(InputField, { type: "text", name: "fuelAmount", value: formData.fuelAmount, onChange: handleChange, placeholder: "Örn: 135,50", required: true })
                     )
                 );
             default: return null;
@@ -1201,30 +1182,21 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
 };
 
 // From components/SearchRecords.tsx
-const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, airportList, onAddApprovalRequest, showMessage }) => {
+const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, airportList, onAddApprovalRequest, showMessage, updateFuelRecords, undoBuffer, setUndoBuffer, conflictData, setConflictData, onDeleteRecord }) => {
     const [filters, setFilters] = useState({ startDate: '', endDate: '', personnelId: '', tailNumber: '', tankerPlate: '', kayitNumarasi: '' });
     const [displayedRecords, setDisplayedRecords] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
     const [editedFields, setEditedFields] = useState({});
+    
+    // Patch: Blinking state for search button
+    const isBlinking = conflictData !== null;
 
     const uniqueTailNumbers = useMemo(() => {
         if (!aircraftData) return [];
         return [...new Set(aircraftData.map(a => a.tailNumber))].sort();
     }, [aircraftData]);
-
-    const uniqueTankerPlates = useMemo(() => {
-        if (!tankerData) return [];
-        return [...new Set(tankerData.map(t => t.plate))].sort();
-    }, [tankerData]);
-
-    const allLocations = useMemo(() => {
-        if (!tankerData || !airportList) return [];
-        const tankerPlates = tankerData.map(t => t.plate);
-        const airportNames = airportList.map(a => a.name);
-        return [...new Set([...airportNames, ...tankerPlates])].sort();
-    }, [tankerData, airportList]);
 
     const handleSearch = () => {
         const isAnyFilterActive = Object.values(filters).some(value => value !== '');
@@ -1248,7 +1220,36 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
             const matchesKayitNumarasi = !filters.kayitNumarasi || (record.kayitNumarasi && String(record.kayitNumarasi).includes(filters.kayitNumarasi));
             return matchesDate && matchesPersonnel && matchesTailNumber && matchesTankerPlate && matchesKayitNumarasi;
         });
-        setDisplayedRecords(results);
+        
+        // --- Duplicate Detection Engine (PATCHED) ---
+        const seenMap = new Map();
+        const resultsAfterDeduplication = [];
+        results.forEach(rec => {
+           const rNo = String(rec.receiptNumber).trim();
+           const amt = Number(parseFloat(String(rec.fuelAmount).replace(',', '.')));
+           if (rNo && rNo !== '-' && rNo !== '--') {
+              if (seenMap.has(rNo)) {
+                 const prev = seenMap.get(rNo);
+                 if (Number(parseFloat(String(prev.fuelAmount).replace(',', '.'))) === amt) {
+                    // Patch: Same Receipt + Same Liters -> Auto Handle
+                    onDeleteRecord(prev.id);
+                    setUndoBuffer(prev);
+                    // Do not add to resultsAfterDeduplication to show deduped view
+                 } else {
+                    // Patch: Same Receipt + Diff Liters -> Show Conflict
+                    setConflictData({ existing: prev, incoming: rec });
+                    resultsAfterDeduplication.push(rec);
+                 }
+              } else {
+                 seenMap.set(rNo, rec);
+                 resultsAfterDeduplication.push(rec);
+              }
+           } else {
+             resultsAfterDeduplication.push(rec);
+           }
+        });
+
+        setDisplayedRecords(resultsAfterDeduplication);
         setHasSearched(true);
     };
 
@@ -1264,7 +1265,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditedFields(prev => ({ ...prev, [name]: name === 'fuelAmount' ? parseFloat(value) || 0 : value }));
+        setEditedFields(prev => ({ ...prev, [name]: name === 'fuelAmount' ? parseFloat(String(value).replace(',', '.')) || 0 : value }));
     };
 
     const handleEditRequestSubmit = () => {
@@ -1293,6 +1294,20 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
         setEditingRecord(null);
     };
 
+    const totalFuel = useMemo(() => {
+       return displayedRecords.reduce((acc, r) => acc + (parseFloat(String(r.fuelAmount).replace(',', '.')) || 0), 0);
+    }, [displayedRecords]);
+
+    const renderRecordDetails = (record) => (
+      React.createElement("div", { className: "text-xs space-y-1 p-4 bg-slate-100 rounded-lg border border-slate-200 mt-2 shadow-inner" },
+         React.createElement("p", null, React.createElement("strong", null, "Kayıt No: "), formatDisplayDate(record.kayitNumarasi)),
+         React.createElement("p", null, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(record.date)),
+         React.createElement("p", null, React.createElement("strong", null, "Personel: "), record.personnelName || '--'),
+         React.createElement("p", null, React.createElement("strong", null, "Makbuz No: "), record.receiptNumber || '--'),
+         React.createElement("p", null, React.createElement("strong", null, "Yakıt (lt): "), Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
+      )
+    );
+
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("h2", { className: "text-2xl font-bold text-slate-700" }, "Kayıtları Ara"),
@@ -1300,10 +1315,6 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                 React.createElement("div", null,
                     React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Başlangıç Tarihi:"),
                     React.createElement("input", { type: "date", name: "startDate", value: filters.startDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" })
-                ),
-                 React.createElement("div", null,
-                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Bitiş Tarihi:"),
-                    React.createElement("input", { type: "date", name: "endDate", value: filters.endDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" })
                 ),
                 React.createElement("div", null,
                     React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Personel:"),
@@ -1324,30 +1335,19 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                         placeholder: "Kuyruk No Ara...",
                         className: "w-full p-2 border border-slate-300 rounded-md text-base"
                     })
-                ),
-                React.createElement("div", null,
-                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Tanker Plakası:"),
-                    React.createElement(AutocompleteSelect, {
-                        options: uniqueTankerPlates.map(plate => ({ value: plate, label: plate })),
-                        value: filters.tankerPlate,
-                        onChange: (value) => setFilters(prev => ({ ...prev, tankerPlate: value })),
-                        placeholder: "Plaka Ara...",
-                        className: "w-full p-2 border border-slate-300 rounded-md text-base"
-                    })
-                ),
-                 React.createElement("div", null,
-                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Kayıt No:"),
-                    React.createElement("input", { type: "text", name: "kayitNumarasi", value: filters.kayitNumarasi, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Kayıt No Ara..." })
                 )
             ),
-            React.createElement("button", { onClick: handleSearch, className: "w-full py-3 px-6 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700 transition-colors" }, "Ara"),
+            React.createElement("button", { 
+               onClick: handleSearch, 
+               className: `w-full py-3 px-6 text-white rounded-lg font-semibold transition-all duration-300 ${isBlinking ? 'blink-orange' : 'bg-ogm-green-600 hover:bg-ogm-green-700'}` 
+            }, "Ara"),
+            
             React.createElement("div", { className: "search-results" },
-                React.createElement("h3", { className: "text-xl font-semibold mb-2 text-slate-700" }, "Sonuçlar"),
-                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
-                    React.createElement("table", { className: "min-w-full bg-white text-sm" },
+                React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg shadow-sm" },
+                    React.createElement("table", { id: "search-records-table", className: "excel-table" },
                         React.createElement("thead", { className: "bg-slate-100" },
                             React.createElement("tr", null,
-                                ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz Numarası', 'Kuyruk No', 'Kart No', 'Yakıt (lt)'].map(header => (
+                                ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz No', 'Kuyruk No', 'Yakıt (lt)'].map(header => (
                                     React.createElement("th", { key: header }, header)
                                 ))
                             )
@@ -1363,21 +1363,30 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                                         React.createElement("td", { className: "p-3" }, record.location || '--'),
                                         React.createElement("td", { className: "p-3" }, record.receiptNumber || '--'),
                                         React.createElement("td", { className: "p-3" }, record.tailNumber || '-'),
-                                        React.createElement("td", { className: "p-3" }, record.cardNumber || '-'),
-                                        React.createElement("td", { className: "p-3" }, record.fuelAmount ? record.fuelAmount.toFixed(2) : '0.00')
+                                        React.createElement("td", { 
+                                            className: `p-3 text-right ${displayedRecords.some(r => r.id !== record.id && String(r.receiptNumber).trim() === String(record.receiptNumber).trim() && r.fuelAmount !== record.fuelAmount && String(record.receiptNumber).trim() !== '-' && String(record.receiptNumber).trim() !== '--') ? 'blink-conflict' : ''}` 
+                                        }, Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
                                     )
                                 ))
                             ) : (
                                 React.createElement("tr", null,
-                                    React.createElement("td", { colSpan: 9, className: "text-center p-6 text-slate-500" },
+                                    React.createElement("td", { colSpan: 8, className: "text-center p-6 text-slate-500" },
                                         hasSearched ? "Kayıt bulunamadı." : "Arama yapmak için yukarıdaki filtreleri kullanın."
                                     )
                                 )
+                            )
+                        ),
+                        // Patch: Toplam yakıt tablonun en altında (tfoot) gösterilir
+                        displayedRecords.length > 0 && React.createElement("tfoot", null,
+                            React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
+                                React.createElement("td", { colSpan: 7, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
+                                React.createElement("td", { className: "p-3 text-right text-ogm-green-900" }, totalFuel.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), " LT")
                             )
                         )
                     )
                 )
             ),
+
             React.createElement(Modal, { isOpen: !!isEditModalOpen, onClose: () => setIsEditModalOpen(false), title: "Kayıt Düzenleme Talebi Oluştur" },
                 editingRecord && React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
@@ -1386,86 +1395,8 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                             React.createElement("input", { type: "text", value: editedFields.kayitNumarasi || '', readOnly: true, className: "w-full p-2 border border-slate-300 rounded-md bg-slate-100" })
                         ),
                         React.createElement("div", null,
-                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Tarih:"),
-                            React.createElement("input", { type: "date", name: "date", value: editedFields.date ? new Date(editedFields.date).toISOString().split('T')[0] : '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
-                        ),
-                        React.createElement("div", null,
                             React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Yakıt Miktarı (lt):"),
-                            React.createElement("input", { type: "number", name: "fuelAmount", value: editedFields.fuelAmount || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
-                        ),
-                        React.createElement("div", null,
-                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Makbuz Numarası:"),
-                            React.createElement("input", { type: "text", name: "receiptNumber", value: editedFields.receiptNumber || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
-                        ),
-                        editingRecord.recordType === 'personnel' && React.createElement(React.Fragment, null,
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Konum:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: allLocations.map(loc => ({ value: loc, label: loc })),
-                                    value: editedFields.location || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'location', value } }),
-                                    placeholder: "Konum Seçiniz veya Arayınız",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            ),
-                            editingRecord.cardNumber && React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Kart Numarası:"),
-                                React.createElement("input", { type: "text", name: "cardNumber", value: editedFields.cardNumber || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
-                            ),
-                            editingRecord.jobTitle === 'Pilot' && React.createElement("div", { className: "md:col-span-2" },
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Kuyruk Numarası:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: aircraftData.map(a => ({ value: a.tailNumber, label: a.tailNumber })),
-                                    value: editedFields.tailNumber || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'tailNumber', value } }),
-                                    placeholder: "Kuyruk No Seçiniz veya Arayınız",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            )
-                        ),
-                        editingRecord.recordType === 'tankerDolum' && React.createElement(React.Fragment, null,
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Hava Limanı:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: airportList.map(a => ({ value: a.name, label: a.name })),
-                                    value: editedFields.location || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'location', value } }),
-                                    placeholder: "Hava Limanı Seçiniz",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            ),
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Tanker Plakası:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
-                                    value: editedFields.tankerPlate || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'tankerPlate', value } }),
-                                    placeholder: "Tanker Plakası Seçiniz",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            )
-                        ),
-                        editingRecord.recordType === 'tankerTransfer' && React.createElement(React.Fragment, null,
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Veren Tanker Plakası:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
-                                    value: editedFields.fillingTankerPlate || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'fillingTankerPlate', value } }),
-                                    placeholder: "Veren Tankeri Seçiniz",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            ),
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Alan Tanker Plakası:"),
-                                React.createElement(AutocompleteSelect, {
-                                    options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
-                                    value: editedFields.receivingTankerPlate || '',
-                                    onChange: (value) => handleEditChange({ target: { name: 'receivingTankerPlate', value } }),
-                                    placeholder: "Alan Tankeri Seçiniz",
-                                    className: "w-full p-2 border border-slate-300 rounded-md"
-                                })
-                            )
+                            React.createElement("input", { type: "text", name: "fuelAmount", value: String(editedFields.fuelAmount).replace('.', ','), onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
                         )
                     ),
                     React.createElement("div", { className: "flex justify-end gap-3 pt-4" },
@@ -1509,7 +1440,7 @@ const AdminLogin = ({ onLoginSuccess, showMessage, adminCredentials }) => {
                     })
                 ),
                 React.createElement("div", null,
-                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, "Parola:"),
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Parola:"),
                     React.createElement("input", {
                         type: "password",
                         value: password,
@@ -1677,7 +1608,8 @@ const TankerDataManagement = ({ tankerData, onUpdate, showMessage }) => {
     const [selectedIds, setSelectedIds] = useState(new Set());
     
     const handleInputChange = (e) => {
-        setNewTanker(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setNewTanker(prev => ({ ...prev, [name]: value }));
     };
 
     const handleAddTanker = () => {
@@ -1845,7 +1777,7 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
     };
 
     const renderChanges = (original, changes) => {
-        // Obje kontrolü: Görseldeki 0: { 1: " hatasını önlemek için gelen verinin obje olduğundan emin oluyoruz.
+        // Obje kontrolü
         const originalObj = typeof original === 'string' ? JSON.parse(original) : original;
         const changesObj = typeof changes === 'string' ? JSON.parse(changes) : changes;
 
@@ -1916,7 +1848,6 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             approvalRequests.length > 0 ? (
                                 approvalRequests.map(req => {
-                                    // Robust check for originalRecord
                                     const orig = typeof req.originalRecord === 'string' ? JSON.parse(req.originalRecord) : req.originalRecord;
                                     return React.createElement("tr", { key: req.id, onClick: () => setSelectedRequest(req), className: "hover:bg-slate-50 cursor-pointer" },
                                         React.createElement("td", { className: "p-3" }, formatDisplayDate(orig.kayitNumarasi)),
@@ -2103,12 +2034,12 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
                         ),
                         React.createElement("tbody", { className: "divide-y divide-slate-200" },
                             personnelList.map(person => (
-                                React.createElement("tr", { key: person.id, onDoubleClick: () => setEditingPersonnel(person), className: "hover:bg-slate-50 cursor-pointer" },
-                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(person.id), onChange: () => handleSelect(person.id) })),
-                                    React.createElement("td", { className: "text-left" }, person.name),
-                                    React.createElement("td", { className: "text-left" }, person.job),
-                                    React.createElement("td", { className: "text-left" }, person.company || '-')
-                                )
+                                React.createElement("tr", { key: person.id, onDoubleClick: () => setEditingPersonnel(person), className: "hover:bg-slate-50 cursor-pointer" }, [
+                                    React.createElement("td", { "data-exclude": "true", key: 'check' }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(person.id), onChange: () => handleSelect(person.id) })),
+                                    React.createElement("td", { className: "text-left", key: 'name' }, person.name),
+                                    React.createElement("td", { className: "text-left", key: 'job' }, person.job),
+                                    React.createElement("td", { className: "text-left", key: 'company' }, person.company || '-')
+                                ])
                             ))
                         )
                     )
@@ -2345,7 +2276,7 @@ const UserManagement = ({ adminCredentials, onAddUser, onDeleteUser, showMessage
 };
 
 // From components/RecordManagement.tsx
-const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tankerData, airportList, showMessage }) => {
+const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tankerData, airportList, showMessage, onDeleteRecord, undoBuffer, setUndoBuffer, conflictData, setConflictData }) => {
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
@@ -2357,13 +2288,11 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         airport: ''
     });
     const [displayedRecords, setDisplayedRecords] = useState([]);
-    const [editingRecord, setEditingRecord] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
-
-    // Mükerrer yönetimi için state'ler
-    const [autoDeletedRecord, setAutoDeletedRecord] = useState(null);
-    const [conflictData, setConflictData] = useState(null);
-    const [deletedReceipts, setDeletedReceipts] = useState([]);
+    const [hasSearched, setHasSearched] = useState(false);
+    
+    // Patch: Conflict state controls
+    const isBlinking = conflictData !== null;
 
     const filterOptions = useMemo(() => {
         const tailNumbers = [...new Set(fuelRecords.map(r => r.tailNumber).filter(Boolean))].sort();
@@ -2379,9 +2308,9 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         setFilters(prev => ({ ...prev, [name]: value }));
     };
 
-    const runFilter = () => {
+    const handleSearch = () => {
         const aircraftInfoMap = new Map(aircraftData.map(a => [a.tailNumber, { type: a.aircraftType, company: a.company }]));
-        return fuelRecords.filter(record => {
+        let filtered = fuelRecords.filter(record => {
             if (filters.startDate && record.date < filters.startDate) return false;
             if (filters.endDate && record.date > filters.endDate) return false;
             if (filters.tailNumber && record.tailNumber !== filters.tailNumber) return false;
@@ -2398,82 +2327,36 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
 
             return true;
         });
-    }
-
-    const normalizeNum = (n) => String(n || '').replace(/[\s-]/g, '').toUpperCase();
-    const normalizeFuel = (f) => Number(String(f || 0).replace(',', '.'));
-
-    const handleSearch = () => {
-        const filtered = runFilter();
-        if (filtered.length === 0) {
-            showMessage('Filtrelerle eşleşen veri bulunamadı.', 'error');
-            setDisplayedRecords([]);
-            return;
-        }
-
-        // Mükerrer analizi
-        const normGroups = {};
-        const finalResults = [];
-        const localAutoDeleted = [];
-        const localConflicts = [];
-
-        // Önce çelişki flaglerini temizle
-        filtered.forEach(r => delete r.isConflict);
-
-        filtered.forEach(record => {
-            const nNum = normalizeNum(record.receiptNumber);
-            const nFuel = normalizeFuel(record.fuelAmount);
-
-            if (!normGroups[nNum]) {
-                normGroups[nNum] = [record];
-                finalResults.push(record);
-            } else {
-                const existingInGroup = normGroups[nNum];
-                const exactMatch = existingInGroup.find(r => normalizeFuel(r.fuelAmount) === nFuel);
-
-                if (exactMatch) {
-                    // KURAL 1: Tam mükerrer - otomatik sil
-                    localAutoDeleted.push(record);
-                    // Master list'ten sil
-                    onUpdateFuelRecords(fuelRecords.filter(fr => fr.id !== record.id));
-                } else {
-                    // KURAL 2: Makbuz aynı yakıt farklı - çelişki
-                    record.isConflict = true;
-                    existingInGroup.forEach(r => r.isConflict = true);
-                    localConflicts.push({ existing: existingInGroup[0], incoming: record });
-                    finalResults.push(record);
-                }
-            }
+        
+        // --- Duplicate Detection Engine (Makbuz Yönetimi için) ---
+        const seenMap = new Map();
+        const filteredAfterDeduplication = [];
+        filtered.forEach(rec => {
+           const rNo = String(rec.receiptNumber).trim();
+           const amt = Number(parseFloat(String(rec.fuelAmount).replace(',', '.')));
+           if (rNo && rNo !== '-' && rNo !== '--') {
+              if (seenMap.has(rNo)) {
+                 const prev = seenMap.get(rNo);
+                 if (Number(parseFloat(String(prev.fuelAmount).replace(',', '.'))) === amt) {
+                    onDeleteRecord(prev.id);
+                    setUndoBuffer(prev);
+                    showMessage("Mükerrer kayıt tespit edildi ve otomatik silindi.", "success");
+                 } else {
+                    setConflictData({ existing: prev, incoming: rec });
+                    filteredAfterDeduplication.push(rec);
+                 }
+              } else {
+                 seenMap.set(rNo, rec);
+                 filteredAfterDeduplication.push(rec);
+              }
+           } else {
+             filteredAfterDeduplication.push(rec);
+           }
         });
 
-        if (localAutoDeleted.length > 0) {
-            setDeletedReceipts(prev => [...prev, ...localAutoDeleted]);
-            setAutoDeletedRecord(localAutoDeleted[0]);
-        }
-        if (localConflicts.length > 0) {
-            setConflictData(localConflicts[0]);
-        }
-
-        setDisplayedRecords(finalResults);
+        setDisplayedRecords(filteredAfterDeduplication);
+        setHasSearched(true);
         setSelectedIds(new Set());
-    };
-
-    const handleUndoAutoDelete = () => {
-        if (!autoDeletedRecord) return;
-        const restored = autoDeletedRecord;
-        onUpdateFuelRecords([...fuelRecords, restored]);
-        setDisplayedRecords(prev => [...prev, restored]);
-        setDeletedReceipts(prev => prev.filter(d => d.id !== restored.id));
-        setAutoDeletedRecord(null);
-        showMessage('Mükerrer kayıt geri yüklendi.', 'success');
-    };
-
-    const handleResolveConflict = (idToRemove) => {
-        const updated = fuelRecords.filter(r => r.id !== idToRemove);
-        onUpdateFuelRecords(updated);
-        setDisplayedRecords(prev => prev.filter(r => r.id !== idToRemove));
-        setConflictData(null);
-        showMessage('Kayıt silindi ve çelişki giderildi.', 'success');
     };
 
     const handleDeleteSelected = () => {
@@ -2486,15 +2369,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         setDisplayedRecords(prev => prev.filter(rec => !selectedIds.has(rec.id)));
         showMessage(`${selectedIds.size} kayıt silindi.`, 'success');
         setSelectedIds(new Set());
-    };
-
-    const handleSelect = (id) => {
-        setSelectedIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(id)) newSet.delete(id);
-            else newSet.add(id);
-            return newSet;
-        });
     };
 
     const handleSelectAll = (e) => {
@@ -2543,6 +2417,21 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         showMessage(`Rapor ${format.toUpperCase()} olarak başarıyla oluşturuldu.`, 'success');
     };
 
+    const filteredTotal = useMemo(() => {
+       return displayedRecords.reduce((acc, r) => acc + (parseFloat(String(r.fuelAmount).replace(',', '.')) || 0), 0);
+    }, [displayedRecords]);
+
+    const renderRecordDetails = (record) => (
+      React.createElement("div", { className: "text-xs space-y-1 p-4 bg-slate-100 rounded-lg border border-slate-200 mt-2 shadow-inner" },
+         React.createElement("p", null, React.createElement("strong", null, "Kayıt No: "), formatDisplayDate(record.kayitNumarasi)),
+         React.createElement("p", null, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(record.date)),
+         React.createElement("p", null, React.createElement("strong", null, "Personel: "), record.personnelName || '--'),
+         React.createElement("p", null, React.createElement("strong", null, "Konum: "), record.location || '--'),
+         React.createElement("p", null, React.createElement("strong", null, "Makbuz No: "), record.receiptNumber || '--'),
+         React.createElement("p", null, React.createElement("strong", null, "Yakıt (lt): "), Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
+      )
+    );
+
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("h2", { className: "text-xl font-semibold text-slate-700" }, "Makbuz Yönetimi"),
@@ -2553,13 +2442,16 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                     React.createElement("input", { type: "date", name: "endDate", value: filters.endDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement("input", { type: "text", name: "receiptNumber", value: filters.receiptNumber, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Makbuz No Girin" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.tankerPlates.map(p => ({ value: p, label: p })), value: filters.tankerPlate, onChange: (v) => handleFilterChange({target:{name:'tankerPlate',value:v}}), placeholder: "Plaka Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
-                    React.createElement(AutocompleteSelect, { options: filterOptions.airports.map(a => ({ value: a.name, label: a.name })), value: filters.airport, onChange: (v) => handleFilterChange({target:{name:'airport',value:v}}), placeholder: "Hava Limanı Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
+                    React.createElement(AutocompleteSelect, { options: filterOptions.airports.map(a => ({ value: a, label: a })), value: filters.airport, onChange: (v) => handleFilterChange({target:{name:'airport',value:v}}), placeholder: "Hava Limanı Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.tailNumbers.map(tn => ({ value: tn, label: tn })), value: filters.tailNumber, onChange: (v) => handleFilterChange({target:{name:'tailNumber',value:v}}), placeholder: "Kuyruk No Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.aircraftTypes.map(t => ({ value: t.label, label: t.label })), value: filters.aircraftType, onChange: (v) => handleFilterChange({target:{name:'aircraftType',value:v}}), placeholder: "Tip Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" }),
                     React.createElement(AutocompleteSelect, { options: filterOptions.companies.map(c => ({ value: c, label: c })), value: filters.company, onChange: (v) => handleFilterChange({target:{name:'company',value:v}}), placeholder: "Firma Filtrele", className: "w-full p-2 border border-slate-300 rounded-md" })
                 ),
                 React.createElement("div", { className: "pt-4" },
-                     React.createElement("button", { onClick: handleSearch, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700 transition-colors" }, "Ara")
+                     React.createElement("button", { 
+                        onClick: handleSearch, 
+                        className: `py-2 px-5 text-white rounded-lg font-semibold transition-all duration-300 ${isBlinking ? 'blink-orange' : 'bg-ogm-green-600 hover:bg-ogm-green-700'}` 
+                     }, "Ara")
                 )
             ),
              React.createElement("div", { className: "mt-4" },
@@ -2577,15 +2469,20 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         React.createElement("thead", null,
                             React.createElement("tr", null,
                                 React.createElement("th", { "data-exclude": "true", className: "w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === displayedRecords.length && displayedRecords.length > 0 })),
-                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Kart No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
+                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
                                     React.createElement("th", { key: header }, header)
                                 ))
                             )
                         ),
                         React.createElement("tbody", null,
                             displayedRecords.length > 0 ? displayedRecords.map(record => (
-                                React.createElement("tr", { key: record.id, className: `hover:bg-slate-50 cursor-pointer ${record.isConflict ? 'duplicate-warning' : ''}` },
-                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(record.id), onChange: () => handleSelect(record.id) })),
+                                React.createElement("tr", { key: record.id, className: "hover:bg-slate-50 cursor-pointer" },
+                                    React.createElement("td", { "data-exclude": "true" }, React.createElement("input", { type: "checkbox", checked: selectedIds.has(record.id), onChange: () => {
+                                        const newSet = new Set(selectedIds);
+                                        if (newSet.has(record.id)) newSet.delete(record.id);
+                                        else newSet.add(record.id);
+                                        setSelectedIds(newSet);
+                                    } })),
                                     React.createElement("td", { className: "text-left" }, formatDisplayDate(record.kayitNumarasi)),
                                     React.createElement("td", { className: "text-left" }, formatDisplayDateOnly(record.date)),
                                     React.createElement("td", { className: "text-left" }, 
@@ -2597,8 +2494,9 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                     React.createElement("td", { className: "text-left" }, record.receiptNumber || '--'),
                                     React.createElement("td", { className: "text-left" }, record.receiptType || '-'),
                                     React.createElement("td", { className: "text-left" }, record.tailNumber || '-'),
-                                    React.createElement("td", { className: "text-left" }, record.cardNumber || '-'),
-                                    React.createElement("td", { className: "text-right font-bold" }, record.fuelAmount.toFixed(2)),
+                                    React.createElement("td", { 
+                                        className: `text-right ${displayedRecords.some(r => r.id !== record.id && String(r.receiptNumber).trim() === String(record.receiptNumber).trim() && r.fuelAmount !== record.fuelAmount && String(record.receiptNumber).trim() !== '-' && String(record.receiptNumber).trim() !== '--') ? 'blink-conflict' : ''}` 
+                                    }, Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })),
                                     React.createElement("td", { className: "text-left" },
                                         (() => {
                                             const link = getReceiptLink(record);
@@ -2606,42 +2504,14 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                         })()
                                     )
                                 )
-                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 13, className: "text-center p-6 text-slate-500" }, "Arama yapmak için filtreleri kullanın."))
-                        )
-                    )
-                )
-            ),
-            // Popup'lar
-            autoDeletedRecord && React.createElement(Modal, { isOpen: true, onClose: () => setAutoDeletedRecord(null), title: "⚠️ Otomatik mükerrer kayıt silindi" },
-                React.createElement("div", { className: "space-y-4" },
-                    React.createElement("div", { className: "text-sm space-y-1" },
-                        React.createElement("p", null, React.createElement("strong", null, "Kayıt No:"), " ", formatDisplayDate(autoDeletedRecord.kayitNumarasi)),
-                        React.createElement("p", null, React.createElement("strong", null, "Tarih:"), " ", formatDisplayDateOnly(autoDeletedRecord.date)),
-                        React.createElement("p", null, React.createElement("strong", null, "Personel:"), " ", autoDeletedRecord.personnelName),
-                        React.createElement("p", null, React.createElement("strong", null, "Makbuz No:"), " ", autoDeletedRecord.receiptNumber),
-                        React.createElement("p", null, React.createElement("strong", null, "Yakıt (lt):"), " ", autoDeletedRecord.fuelAmount)
-                    ),
-                    React.createElement("div", { className: "flex justify-end gap-3" },
-                        React.createElement("button", { onClick: handleUndoAutoDelete, className: "py-2 px-4 bg-ogm-green-600 text-white rounded-lg font-semibold" }, "Geri Al"),
-                        React.createElement("button", { onClick: () => setAutoDeletedRecord(null), className: "py-2 px-4 bg-slate-200 rounded-lg" }, "Kapat")
-                    )
-                )
-            ),
-            conflictData && React.createElement(Modal, { isOpen: true, onClose: () => setConflictData(null), title: "⚠️ Makbuz Numarası Aynı Fakat Yakıt Farklı" },
-                React.createElement("div", { className: "space-y-6" },
-                    React.createElement("p", { className: "text-slate-600" }, "Lütfen silinecek kaydı seçiniz:"),
-                    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                        [conflictData.existing, conflictData.incoming].map((r, idx) => 
-                            React.createElement("div", { key: r.id, className: "p-4 border-2 border-slate-200 rounded-xl hover:border-red-500 cursor-pointer transition-all", onClick: () => handleResolveConflict(r.id) },
-                                React.createElement("div", { className: "text-xs font-bold text-slate-400 uppercase mb-2" }, idx === 0 ? "Sistemdeki Kayıt" : "Yeni Girilen Kayıt"),
-                                React.createElement("div", { className: "text-sm space-y-1" },
-                                    React.createElement("p", null, React.createElement("strong", null, "Tarih:"), " ", formatDisplayDateOnly(r.date)),
-                                    React.createElement("p", null, React.createElement("strong", null, "Yakıt:"), " ", r.fuelAmount, " lt"),
-                                    React.createElement("p", null, React.createElement("strong", null, "Makbuz:"), " ", r.receiptNumber),
-                                    React.createElement("div", { className: "pt-4" },
-                                        React.createElement("span", { className: "block w-full py-2 bg-red-50 text-red-700 text-center rounded-lg font-bold" }, "Bu Kaydı Sil")
-                                    )
-                                )
+                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 12, className: "text-center p-6 text-slate-500" }, hasSearched ? "Veri bulunamadı." : "Arama yapmak için filtreleri kullanın."))
+                        ),
+                        // Patch: Toplam yakıt tablonun en altında (tfoot) gösterilir
+                        displayedRecords.length > 0 && React.createElement("tfoot", null,
+                            React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
+                                React.createElement("td", { colSpan: 10, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
+                                React.createElement("td", { className: "p-3 text-right text-ogm-green-900" }, filteredTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), " LT"),
+                                React.createElement("td", null)
                             )
                         )
                     )
@@ -3481,14 +3351,14 @@ const AdminPanel = (props) => {
                         React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", clipRule: "evenodd" }))
                     ),
                      React.createElement(NavButton, { label: "Ayarlar", onClick: () => setActiveModule('settings'), isActive: activeModule === 'settings' },
-                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" }), React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }))
+                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" }), React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }))
                     )
                 ),
                 React.createElement(UserInfo, { user: props.currentUser })
             ),
             React.createElement("main", { className: "flex-1" },
                 activeModule === 'dataEntry' && React.createElement(DataEntryModule, null),
-                activeModule === 'receipts' && React.createElement(RecordManagement, { fuelRecords: props.fuelRecords, onUpdateFuelRecords: props.updateFuelRecords, aircraftData: props.aircraftData, tankerData: props.tankerData, airportList: props.airportList, showMessage: props.showMessage }),
+                activeModule === 'receipts' && React.createElement(RecordManagement, { fuelRecords: props.fuelRecords, onUpdateFuelRecords: props.updateFuelRecords, aircraftData: props.aircraftData, tankerData: props.tankerData, airportList: props.airportList, showMessage: props.showMessage, onDeleteRecord: props.onDeleteRecord, undoBuffer: props.undoBuffer, setUndoBuffer: props.setUndoBuffer, conflictData: props.conflictData, setConflictData: props.setConflictData }),
                 activeModule === 'tankerTracking' && React.createElement(TankerTakip, { tankerData: props.tankerData, fuelRecords: props.fuelRecords, showMessage: props.showMessage }),
                 activeModule === 'regionReceiptTracking' && React.createElement(RegionReceiptTracking, { tankerData: props.tankerData, fuelRecords: props.fuelRecords, receiptBooks: props.receiptBooks, showMessage: props.showMessage }),
                 activeModule === 'approval' && React.createElement(ApprovalRequestsComponent, { approvalRequests: props.approvalRequests, personnelApprovalRequests: props.personnelApprovalRequests, onHandleEditApproval: props.handleEditApproval, onHandlePersonnelApproval: props.handlePersonnelApproval, showMessage: props.showMessage }),
@@ -3509,7 +3379,7 @@ const normalizeSheetRecord = (rec, allPersonnel) => {
         date: parseSheetDate(rec['Tarih']),
         receiptNumber: rec['Makbuz Numarası'],
         receiptType: rec['Makbuz Tipi'] || '',
-        fuelAmount: parseFloat(String(rec['Yakıt Miktarı (lt)'] || '0').replace(',', '.')) || 0,
+        fuelAmount: Number(parseFloat(String(rec['Yakıt Miktarı (lt)'] || '0').replace(',', '.'))) || 0,
     };
     
     if (!normalized.date) return null; // Skip records with unparseable dates
@@ -3550,41 +3420,23 @@ const normalizeSheetRecord = (rec, allPersonnel) => {
 const deNormalizeRecord = (record) => {
     const denormalized = {
         'Tarih': record.date || '',
-        'Kayıt Tipi': '',
+        'Kayıt Tipi': RECORD_TYPE_TRANSLATIONS[record.recordType] || record.recordType || '',
         'Makbuz Numarası': record.receiptNumber || '',
         'Makbuz Tipi': record.receiptType || '-',
-        'Yakıt Miktarı (lt)': record.fuelAmount || 0,
-        'Kuyruk Numarası': '',
-        'Personel Adı': '',
-        'Mesleği': '',
-        'Kart Numarası': '',
-        'İkmal Tipi': '',
-        'İkmal Konumu': '',
-        'Dolum Yapılan Tanker Plakası': '',
-        'Dolum Yapılan Hava Limanı': '',
-        'Yakıtı Alan Tanker Plakası': '',
-        'Yakıtı Veren Tanker Plakası': '',
+        'Yakıt Miktarı (lt)': Number(record.fuelAmount) || 0,
+        'Kuyruk Numarası': record.tailNumber || '',
+        'Personel Adı': record.personnelName || '',
+        'Mesleği': record.jobTitle || '',
+        'Kart Numarası': record.cardNumber || '',
+        'İkmal Tipi': record.locationType || '',
+        'İkmal Konumu': record.location || '',
+        'Dolum Yapılan Tanker Plakası': record.tankerPlate || '',
+        'Dolum Yapılan Hava Limanı': record.recordType === 'tankerDolum' ? record.location : '',
+        'Yakıtı Alan Tanker Plakası': record.receivingTankerPlate || '',
+        'Yakıtı Veren Tanker Plakası': record.fillingTankerPlate || '',
         'Kayıt No': record.kayitNumarasi || ''
     };
     
-    if (record.recordType === 'personnel') {
-        denormalized['Kayıt Tipi'] = 'Hava Aracı İkmal';
-        denormalized['Kuyruk Numarası'] = record.tailNumber || '';
-        denormalized['Personel Adı'] = record.personnelName || '';
-        denormalized['Mesleği'] = record.jobTitle || '';
-        denormalized['Kart Numarası'] = record.cardNumber || '';
-        denormalized['İkmal Tipi'] = record.locationType || '';
-        denormalized['İkmal Konumu'] = record.location || '';
-    } else if (record.recordType === 'tankerDolum') {
-        denormalized['Kayıt Tipi'] = 'Tanker Dolum';
-        denormalized['Dolum Yapılan Tanker Plakası'] = record.tankerPlate || '';
-        denormalized['Dolum Yapılan Hava Limanı'] = record.location || '';
-    } else if (record.recordType === 'tankerTransfer') {
-        denormalized['Kayıt Tipi'] = 'Tanker Transfer';
-        denormalized['Yakıtı Alan Tanker Plakası'] = record.receivingTankerPlate || '';
-        denormalized['Yakıtı Veren Tanker Plakası'] = record.fillingTankerPlate || '';
-    }
-
     return denormalized;
 };
 
@@ -3606,6 +3458,10 @@ const App = () => {
     const [adminCredentials, setAdminCredentials] = useState([{ id: 'user-0', name: 'OGM Admin', username: 'ogm', password: '1839' }]);
     const [airportList, setAirportList] = useState(INITIAL_AIRPORT_LIST);
     const [receiptBooks, setReceiptBooks] = useState([]);
+    
+    // Patch: Undo & Conflict Buffer States
+    const [undoBuffer, setUndoBuffer] = useState(null);
+    const [conflictData, setConflictData] = useState(null);
 
 
     const showMessage = (text, type) => {
@@ -3619,8 +3475,8 @@ const App = () => {
             setRedirectInfo(prev => ({ ...prev, isFadingOut: true }));
             setTimeout(() => {
                 window.location.href = url;
-            }, 1000); // Wait for fade-out animation to complete
-        }, 2000); // Show message for 2 seconds before fading
+            }, 1000);
+        }, 2000);
     };
 
     const postData = async (action, payload) => {
@@ -3657,7 +3513,7 @@ const App = () => {
         } catch (error) {
             console.error(`"postData" hatası (eylem: "${action}"):`, error);
             if (error.message && (error.message.includes('SPREADSHEET_ID') || error.message.includes('E-Tablo Açılamadı'))) {
-                 // Do not show a toast for this critical error; the main useEffect will handle it.
+                 // handled by main useEffect
             } else if (error.message.includes('Failed to fetch')) {
                  showMessage('Ağ Hatası: Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edin.', 'error');
             } else {
@@ -3669,7 +3525,6 @@ const App = () => {
         }
     };
 
-    // Karakter bozulmasını önlemek için yardımcı parse fonksiyonu
     const robustParseJSON = (str) => {
         if (!str || typeof str !== 'string') return str;
         try { return JSON.parse(str); } catch(e) { return str; }
@@ -3708,8 +3563,6 @@ const App = () => {
                 setAirportList(typedAirports.length > 0 ? typedAirports : INITIAL_AIRPORT_LIST);
 
                 setReceiptBooks(panelData.receiptBooks || []);
-                
-                // Karakter bozulması hatası düzeltmesi: Gelen approval verilerini parse ediyoruz
                 setApprovalRequests(normalizeApprovals(approvalRequestsResult.data));
                 setPersonnelApprovalRequests(personnelApprovalRequestsResult.data || []);
 
@@ -3720,19 +3573,11 @@ const App = () => {
                         "Uygulama Başlatılamadı: Arka Uç Yapılandırma Hatası\n\n" +
                         "Google E-Tablosu'na bağlanılamıyor. Lütfen aşağıdaki adımları kontrol edin:\n\n" +
                         "1. Google Apps Script projenizdeki `Code.js` dosyasını açın.\n\n" +
-                        "2. `SPREADSHEET_ID` değişkeninin doğru E-Tablo kimliği ile ayarlandığından emin olun. (Kimlik, E-Tablo URL'sinde `/d/` ve `/edit` arasındaki kısımdır.)\n\n" +
-                        "3. Komut dosyasını dağıtan Google hesabının, ilgili E-Tablo dosyası üzerinde 'Düzenleyici' (Editor) yetkisine sahip olduğundan emin olun.\n\n" +
-                        "Bu değişiklikleri yaptıktan sonra, Apps Script projenizi yeniden dağıtmayı unutmayın (Deploy > Manage deployments > Düzenle Simgesi > Version: New version)."
+                        "2. `SPREADSHEET_ID` değişkeninin doğru E-Tablo kimliği ile ayarlandığından emin olun.\n\n" +
+                        "3. Komut dosyasını dağıtan Google hesabının yetkisini kontrol edin."
                     );
                 } else {
-                     setCriticalError(
-                        "Uygulama Başlatılamadı: Arka Uç Sunucusuna Bağlanılamadı\n\n" +
-                        "Genel bir ağ hatası oluştu. Lütfen aşağıdaki adımları kontrol edin:\n\n" +
-                        "1. İnternet bağlantınızın çalıştığından emin olun.\n\n" +
-                        "2. Google Apps Script projenizin doğru bir şekilde dağıtıldığından (deployed) emin olun. (Deploy > Manage deployments > Web app URL'si aktif olmalı).\n\n" +
-                        "3. Dağıtım ayarlarında 'Execute as' seçeneğinin 'Me' (siz) ve 'Who has access' seçeneğinin 'Anyone' (herkes) olarak ayarlandığını doğrulayın. Bu, uygulamanın komut dosyasına erişim izni olmasını sağlar.\n\n" +
-                        "4. `constants.ts` dosyasındaki `SCRIPT_URL`'nin, dağıtımınızın URL'si ile eşleştiğini kontrol edin."
-                    );
+                     setCriticalError("Uygulama Başlatılamadı: Arka Uç Sunucusuna Bağlanılamadı");
                 }
             } finally {
                 setIsLoading(false);
@@ -3741,7 +3586,56 @@ const App = () => {
         fetchData();
     }, []);
 
-    const handleAddRecord = async (record) => {
+    const handleBulkUpdate = async (updates) => {
+        const denormalizedUpdates = {};
+        if (updates.aircraftData) denormalizedUpdates.aircraftData = updates.aircraftData;
+        if (updates.tankerData) denormalizedUpdates.tankerData = updates.tankerData;
+        if (updates.personnelList) denormalizedUpdates.personnelList = updates.personnelList;
+        if (updates.airportList) denormalizedUpdates.airportList = updates.airportList;
+        if (updates.admins) denormalizedUpdates.admins = updates.admins;
+        if (updates.receiptBooks) denormalizedUpdates.receiptBooks = updates.receiptBooks;
+        if (updates.fuelRecords) {
+            denormalizedUpdates.fuelRecords = updates.fuelRecords.map(deNormalizeRecord);
+        }
+
+        await postData('onBulkUpdate', denormalizedUpdates);
+        
+        if (updates.aircraftData) setAircraftData(updates.aircraftData);
+        if (updates.tankerData) setTankerData(updates.tankerData);
+        if (updates.personnelList) setPersonnelList(updates.personnelList);
+        if (updates.airportList) setAirportList(updates.airportList);
+        if (updates.admins) setAdminCredentials(updates.admins);
+        if (updates.receiptBooks) setReceiptBooks(updates.receiptBooks);
+        if (updates.fuelRecords) setFuelRecords(updates.fuelRecords);
+    };
+
+    const onDeleteRecord = async (id, bypassUndo = false) => {
+        const newList = fuelRecords.filter(r => r.id !== id);
+        // Patch: Using safe handleBulkUpdate instead of failing onDeleteRecord action
+        await handleBulkUpdate({ fuelRecords: newList });
+    };
+
+    // Patch: Enhanced handleAddRecord with duplicate flow
+    const handleAddRecord = async (record, bypass = false) => {
+        if (!bypass) {
+            const rNo = String(record.receiptNumber).trim();
+            const amt = Number(parseFloat(String(record.fuelAmount).replace(',', '.')));
+            const duplicate = fuelRecords.find(r => String(r.receiptNumber).trim() === rNo);
+            
+            if (duplicate) {
+                const existingAmt = Number(parseFloat(String(duplicate.fuelAmount).replace(',', '.')));
+                if (existingAmt === amt) {
+                    // Patch: Same Receipt + Same Amount -> Auto Replace & Undo Display
+                    await onDeleteRecord(duplicate.id, true);
+                    setUndoBuffer(duplicate);
+                    // newList will be handled by the next lines
+                } else {
+                    // Patch: Same Receipt + Diff Amount -> Open Conflict Selection UI
+                    setConflictData({ existing: duplicate, incoming: record });
+                    return;
+                }
+            }
+        }
         const denormalizedRecord = deNormalizeRecord(record);
         await postData('onAddRecord', denormalizedRecord);
         setFuelRecords(prev => [...prev, record]);
@@ -3769,29 +3663,6 @@ const App = () => {
         setApprovalRequests(prev => [...prev, request]);
     };
     
-    const handleBulkUpdate = async (updates) => {
-        const denormalizedUpdates = {};
-        if (updates.aircraftData) denormalizedUpdates.aircraftData = updates.aircraftData;
-        if (updates.tankerData) denormalizedUpdates.tankerData = updates.tankerData;
-        if (updates.personnelList) denormalizedUpdates.personnelList = updates.personnelList;
-        if (updates.airportList) denormalizedUpdates.airportList = updates.airportList;
-        if (updates.admins) denormalizedUpdates.admins = updates.admins;
-        if (updates.receiptBooks) denormalizedUpdates.receiptBooks = updates.receiptBooks;
-        if (updates.fuelRecords) {
-            denormalizedUpdates.fuelRecords = updates.fuelRecords.map(deNormalizeRecord);
-        }
-
-        await postData('onBulkUpdate', denormalizedUpdates);
-        
-        if (updates.aircraftData) setAircraftData(updates.aircraftData);
-        if (updates.tankerData) setTankerData(updates.tankerData);
-        if (updates.personnelList) setPersonnelList(updates.personnelList);
-        if (updates.airportList) setAirportList(updates.airportList);
-        if (updates.admins) setAdminCredentials(updates.admins);
-        if (updates.receiptBooks) setReceiptBooks(updates.receiptBooks);
-        if (updates.fuelRecords) setFuelRecords(updates.fuelRecords);
-    };
-
     const handleEditApproval = async (request, approved) => {
         const updatedRecord = { ...request.originalRecord, ...request.requestedChanges };
         const payload = {
@@ -3804,12 +3675,10 @@ const App = () => {
         const result = await postData(action, payload);
         
         setFuelRecords(result.data.fuelRecords.map((r) => normalizeSheetRecord(r, personnelList)).filter(Boolean));
-        // Karakter bozulması fix:
         setApprovalRequests(normalizeApprovals(result.data.approvalRequests));
         
         showMessage(`Talep ${approved ? 'onaylandı' : 'reddedildi'}.`, 'success');
     };
-
     const handlePersonnelApproval = async (requestId, approved) => {
         const payload = { requestId };
         const action = approved ? 'onApprovePersonnelRequest' : 'onRejectPersonnelRequest';
@@ -3877,7 +3746,13 @@ const App = () => {
                                 tankerData: tankerData,
                                 airportList: airportList,
                                 onAddApprovalRequest: handleAddApprovalRequest,
-                                showMessage: showMessage
+                                showMessage: showMessage,
+                                updateFuelRecords: updateFuelRecords,
+                                undoBuffer: undoBuffer,
+                                setUndoBuffer: setUndoBuffer,
+                                conflictData: conflictData,
+                                setConflictData: setConflictData,
+                                onDeleteRecord: onDeleteRecord
                             }),
                         activeView === VIEW_ADMIN_PANEL &&
                             React.createElement(AdminPanel, {
@@ -3903,19 +3778,73 @@ const App = () => {
                                 updateFuelRecords: updateFuelRecords,
                                 handleEditApproval: handleEditApproval,
                                 handlePersonnelApproval: handlePersonnelApproval,
-                                onBulkUpdate: handleBulkUpdate
+                                onBulkUpdate: handleBulkUpdate,
+                                undoBuffer: undoBuffer,
+                                setUndoBuffer: setUndoBuffer,
+                                conflictData: conflictData,
+                                setConflictData: setConflictData,
+                                onDeleteRecord: onDeleteRecord
                             })
                     )
                 )
+            ),
+            // Patch: Undo Modal (Matching Screenshot)
+            undoBuffer && React.createElement(Modal, { isOpen: true, onClose: () => setUndoBuffer(null), title: "⚠️ Otomatik mükerrer kayıt silindi" }, 
+               React.createElement("div", { className: "space-y-6" },
+                  React.createElement("div", { className: "bg-slate-50 p-4 rounded-lg border border-slate-200" },
+                     React.createElement("p", { className: "mb-3 font-semibold text-slate-700" }, "Sistem bu kaydı mükerrer olduğu için otomatik olarak sildi:"),
+                     React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Kayıt No: "), undoBuffer.kayitNumarasi),
+                     React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(undoBuffer.date)),
+                     React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Personel: "), undoBuffer.personnelName),
+                     React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Makbuz No: "), undoBuffer.receiptNumber),
+                     React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Yakıt (lt): "), undoBuffer.fuelAmount)
+                  ),
+                  React.createElement("div", { className: "flex justify-end gap-3" },
+                     React.createElement("button", { onClick: () => { handleAddRecord(undoBuffer, true); setUndoBuffer(null); }, className: "py-2 px-8 bg-ogm-green-600 text-white rounded-lg font-bold shadow-md hover:bg-ogm-green-700 transition-all" }, "Geri Al"),
+                     React.createElement("button", { onClick: () => setUndoBuffer(null), className: "py-2 px-6 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300" }, "Kapat")
+                  )
+               )
+            ),
+            // Patch: Conflict Modal (Matching Screenshot)
+            conflictData && React.createElement(Modal, { isOpen: true, onClose: () => setConflictData(null), title: "⚠️ Makbuz Numarası Aynı Fakat Yakıt Farklı" },
+               React.createElement("div", { className: "space-y-4" },
+                  React.createElement("p", { className: "text-slate-600 text-sm" }, "Lütfen silinecek kaydı seçiniz:"),
+                  React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                     React.createElement("div", { className: "border-2 border-red-200 p-4 rounded-xl bg-red-50/30 flex flex-col justify-between" },
+                        React.createElement("div", { className: "space-y-2 mb-4" },
+                           React.createElement("h4", { className: "font-bold text-slate-400 uppercase text-xs tracking-widest mb-3" }, "SİSTEMDEKİ KAYIT"),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(conflictData.existing.date)),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Yakıt: "), conflictData.existing.fuelAmount, " lt"),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Makbuz: "), conflictData.existing.receiptNumber)
+                        ),
+                        React.createElement("button", { onClick: () => { onDeleteRecord(conflictData.existing.id, true); handleAddRecord(conflictData.incoming, true); setConflictData(null); }, className: "w-full py-2 bg-white border border-red-500 text-red-600 rounded-lg font-bold hover:bg-red-500 hover:text-white transition-all" }, "Bu Kaydı Sil")
+                     ),
+                     React.createElement("div", { className: "border p-4 rounded-xl bg-slate-50 flex flex-col justify-between" },
+                        React.createElement("div", { className: "space-y-2 mb-4" },
+                           React.createElement("h4", { className: "font-bold text-slate-400 uppercase text-xs tracking-widest mb-3" }, "YENİ GİRİLEN KAYIT"),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(conflictData.incoming.date)),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Yakıt: "), conflictData.incoming.fuelAmount, " lt"),
+                           React.createElement("p", { className: "text-sm" }, React.createElement("strong", null, "Makbuz: "), conflictData.incoming.receiptNumber)
+                        ),
+React.createElement("button", {
+   onClick: () => {
+      onDeleteRecord(conflictData.existing.id, true);
+      setConflictData(null);
+   },
+   className: "w-full py-2 bg-white border border-red-500 text-red-600 rounded-lg font-bold hover:bg-red-500 hover:text-white transition-all"
+}, "Bu Kaydı Sil")
+
+
+                     )
+                  )
+               )
             )
         )
-      
     );
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(App));
-
     </script>
   </body>
 </html>
