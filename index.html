@@ -152,7 +152,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 // From constants.ts
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJVvXLX84N_79x_Yik_flkQ1jjr70Krwqnj6vJ77gUnCSlUcs9oq2MkKpTy2ZIwtU/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJVvXLX84N_79x_Yik_flkQ1jjr70Krwqnj6vJ77gUnCSlUcs9oq2MkKpTy2ZIwtU/exec"";
 
 const VIEW_FUEL_ENTRY = 'fuelEntry';
 const VIEW_SEARCH_RECORDS = 'searchResults';
@@ -327,11 +327,9 @@ const exportTableToExcel = (tableId, filename) => {
     const table = document.getElementById(tableId);
     if (!table) return;
     
-    // Clone table for manipulation
     const clone = table.cloneNode(true);
     clone.querySelectorAll('[data-exclude="true"]').forEach(el => el.remove());
     
-    // Excel specific header styles (Inline for browser compatibility with Excel app)
     const headers = clone.querySelectorAll('th');
     headers.forEach(th => {
         th.style.backgroundColor = '#14532d';
@@ -357,7 +355,6 @@ const exportTableToExcel = (tableId, filename) => {
     URL.revokeObjectURL(url);
 };
 
-// From components/Modal.tsx
 const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
@@ -377,7 +374,6 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     );
 };
 
-// From components/AutocompleteSelect.tsx
 const AutocompleteSelect = ({ options, value, onChange, placeholder, className }) => {
     const [inputValue, setInputValue] = useState('');
     const [isOpen, setIsOpen] = useState(false);
@@ -493,7 +489,6 @@ const AutocompleteSelect = ({ options, value, onChange, placeholder, className }
     );
 };
 
-// From components/LoadingSpinner.tsx
 const LoadingSpinner = ({ isVisible }) => {
     if (!isVisible) return null;
     return (
@@ -509,7 +504,6 @@ const LoadingSpinner = ({ isVisible }) => {
     );
 };
 
-// From components/MessageBox.tsx
 const MessageBox = ({ text, type }) => {
     const baseClasses = "fixed top-8 left-1/2 -translate-x-1/2 text-white py-3 px-6 rounded-lg z-50 text-center text-lg shadow-xl transition-all duration-300";
     const typeClasses = {
@@ -538,14 +532,13 @@ const RedirectingOverlay = ({ isVisible, isFadingOut }) => {
     );
 };
 
-// From components/Header.tsx
 const Header = () => {
     return (
         React.createElement("header", { className: "bg-ogm-green-700/80 backdrop-blur-sm text-white py-4 px-6 text-center rounded-xl -mt-12 -mx-8 mb-6 sm:-mt-14 sm:-mx-12 sm:mb-8 flex items-center justify-between shadow-lg" },
             React.createElement("div", { className: "flex items-center space-x-1 sm:space-x-4 ml-2 sm:ml-4" },
                 React.createElement("div", { className: "rounded-full embedded-shadow flex-shrink-0" },
                     React.createElement("img", {
-                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXRlNWZpNWQwajl5dnMzbnFieGJ6bmZpOW54NGg5YmFxY3NhbHQwbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
+                        src: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWx6eG0zcjIxY2xqczQ3NDdzdWg1NnBuZjJsY3Z0aG53djI3bmtyciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eRlCNIpfGdPdub57JI/giphy.gif",
                         alt: "OGM Logo",
                         className: "h-14 w-14 sm:h-28 sm:w-28 rounded-full object-cover"
                     })
@@ -584,7 +577,6 @@ const Header = () => {
     );
 };
 
-// From components/Tabs.tsx
 const TabButton = ({ onClick, isActive, children }) => {
     const baseClasses = "py-3 px-4 rounded-lg font-semibold text-sm sm:text-base transition-all duration-300 flex-1 text-center relative";
     const activeClasses = "bg-ogm-green-600 text-white shadow-md";
@@ -606,7 +598,6 @@ const Tabs = ({ activeView, setActiveView }) => {
     );
 };
 
-// From components/FuelEntryForm.tsx
 const InputField = (props) => (
     React.createElement("input", { ...props, className: `w-full p-3 border rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-ogm-green-500 ${props.className || 'border-slate-300'}` })
 );
@@ -651,7 +642,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
     }, [formData.personnelId, personnelList, isManualPersonnelEntry]);
 
     const personnelCompany = (isManualPersonnelEntry ? manualPersonnel.company : selectedPersonnelObject?.company || "").toLowerCase().trim();
-    // Patch: Manual entry is always Non-OGM. If manual, isPersonnelOGM must be false regardless of what they type in company field.
     const isPersonnelOGM = !isManualPersonnelEntry && (personnelCompany.includes('ogm') || personnelCompany.includes('orman'));
 
     const showReceiptTypeSelection = useMemo(() => {
@@ -707,7 +697,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
 
     const handleGenericSelect = (name, value) => {
         if (name === 'receiptType') {
-            // Checkbox logic: clicking already selected value unchecks it
             setFormData(prev => ({ ...prev, [name]: prev.receiptType === value ? "" : value }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
@@ -840,8 +829,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
 
-            // REDIRECTION LOGIC UPDATE
-            let redirectUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ"; // Default OGM
+            let redirectUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ"; 
             if (!isPersonnelOGM) {
                if (isMilitaryLocation && (finalJobTitleForSubmit === 'Pilot' || finalJobTitleForSubmit === 'Uçuş Teknisyeni')) {
                   redirectUrl = "https://bulut.ogm.gov.tr/kiralikaskeri";
@@ -871,7 +859,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     kayitNumarasi,
                     receiptType: "-"
                 };
-             } else { // tankerTransfer
+             } else { 
                 recordToSave = {
                     date: formData.date,
                     receiptNumber: formData.receiptNumber,
@@ -1182,7 +1170,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
     );
 };
 
-// From components/SearchRecords.tsx
 const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, airportList, onAddApprovalRequest, showMessage, updateFuelRecords, undoBuffer, setUndoBuffer, conflictData, setConflictData, onDeleteRecord }) => {
     const [filters, setFilters] = useState({ startDate: '', endDate: '', personnelId: '', tailNumber: '', tankerPlate: '', kayitNumarasi: '' });
     const [displayedRecords, setDisplayedRecords] = useState([]);
@@ -1191,9 +1178,6 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
     const [editingRecord, setEditingRecord] = useState(null);
     const [editedFields, setEditedFields] = useState({});
     
-    // Patch: Blinking state for search button
-    const isBlinking = conflictData !== null;
-
     const uniqueTailNumbers = useMemo(() => {
         if (!aircraftData) return [];
         return [...new Set(aircraftData.map(a => a.tailNumber))].sort();
@@ -1221,36 +1205,8 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
             const matchesKayitNumarasi = !filters.kayitNumarasi || (record.kayitNumarasi && String(record.kayitNumarasi).includes(filters.kayitNumarasi));
             return matchesDate && matchesPersonnel && matchesTailNumber && matchesTankerPlate && matchesKayitNumarasi;
         });
-        
-        // --- Duplicate Detection Engine (PATCHED) ---
-        const seenMap = new Map();
-        const resultsAfterDeduplication = [];
-        results.forEach(rec => {
-           const rNo = String(rec.receiptNumber).trim();
-           const amt = Number(parseFloat(String(rec.fuelAmount).replace(',', '.')));
-           if (rNo && rNo !== '-' && rNo !== '--') {
-              if (seenMap.has(rNo)) {
-                 const prev = seenMap.get(rNo);
-                 if (Number(parseFloat(String(prev.fuelAmount).replace(',', '.'))) === amt) {
-                    // Patch: Same Receipt + Same Liters -> Auto Handle
-                    onDeleteRecord(prev.id);
-                    setUndoBuffer(prev);
-                    // Do not add to resultsAfterDeduplication to show deduped view
-                 } else {
-                    // Patch: Same Receipt + Diff Liters -> Show Conflict
-                    setConflictData({ existing: prev, incoming: rec });
-                    resultsAfterDeduplication.push(rec);
-                 }
-              } else {
-                 seenMap.set(rNo, rec);
-                 resultsAfterDeduplication.push(rec);
-              }
-           } else {
-             resultsAfterDeduplication.push(rec);
-           }
-        });
 
-        setDisplayedRecords(resultsAfterDeduplication);
+        setDisplayedRecords(results);
         setHasSearched(true);
     };
 
@@ -1260,13 +1216,16 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
 
     const handleRowDoubleClick = (record) => {
         setEditingRecord(record);
-        setEditedFields(record);
+        setEditedFields({...record});
         setIsEditModalOpen(true);
     };
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditedFields(prev => ({ ...prev, [name]: name === 'fuelAmount' ? parseFloat(String(value).replace(',', '.')) || 0 : value }));
+        setEditedFields(prev => ({ 
+           ...prev, 
+           [name]: name === 'fuelAmount' ? (parseFloat(String(value).replace(',', '.')) || 0) : value 
+        }));
     };
 
     const handleEditRequestSubmit = () => {
@@ -1299,16 +1258,6 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
        return displayedRecords.reduce((acc, r) => acc + (parseFloat(String(r.fuelAmount).replace(',', '.')) || 0), 0);
     }, [displayedRecords]);
 
-    const renderRecordDetails = (record) => (
-      React.createElement("div", { className: "text-xs space-y-1 p-4 bg-slate-100 rounded-lg border border-slate-200 mt-2 shadow-inner" },
-         React.createElement("p", null, React.createElement("strong", null, "Kayıt No: "), formatDisplayDate(record.kayitNumarasi)),
-         React.createElement("p", null, React.createElement("strong", null, "Tarih: "), formatDisplayDateOnly(record.date)),
-         React.createElement("p", null, React.createElement("strong", null, "Personel: "), record.personnelName || '--'),
-         React.createElement("p", null, React.createElement("strong", null, "Makbuz No: "), record.receiptNumber || '--'),
-         React.createElement("p", null, React.createElement("strong", null, "Yakıt (lt): "), Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
-      )
-    );
-
     return (
         React.createElement("div", { className: "space-y-6" },
             React.createElement("h2", { className: "text-2xl font-bold text-slate-700" }, "Kayıtları Ara"),
@@ -1340,7 +1289,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
             ),
             React.createElement("button", { 
                onClick: handleSearch, 
-               className: `w-full py-3 px-6 text-white rounded-lg font-semibold transition-all duration-300 ${isBlinking ? 'blink-orange' : 'bg-ogm-green-600 hover:bg-ogm-green-700'}` 
+               className: `w-full py-3 px-6 text-white rounded-lg font-semibold transition-all duration-300 bg-ogm-green-600 hover:bg-ogm-green-700` 
             }, "Ara"),
             
             React.createElement("div", { className: "search-results" },
@@ -1365,7 +1314,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                                         React.createElement("td", { className: "p-3" }, record.receiptNumber || '--'),
                                         React.createElement("td", { className: "p-3" }, record.tailNumber || '-'),
                                         React.createElement("td", { 
-                                            className: `p-3 text-right ${displayedRecords.some(r => r.id !== record.id && String(r.receiptNumber).trim() === String(record.receiptNumber).trim() && r.fuelAmount !== record.fuelAmount && String(record.receiptNumber).trim() !== '-' && String(record.receiptNumber).trim() !== '--') ? 'blink-conflict' : ''}` 
+                                            className: `p-3 text-right` 
                                         }, Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
                                     )
                                 ))
@@ -1377,7 +1326,6 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                                 )
                             )
                         ),
-                        // Patch: Toplam yakıt tablonun en altında (tfoot) gösterilir
                         displayedRecords.length > 0 && React.createElement("tfoot", null,
                             React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
                                 React.createElement("td", { colSpan: 7, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
@@ -1392,17 +1340,45 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                 editingRecord && React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                         React.createElement("div", null,
-                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Kayıt No:"),
-                            React.createElement("input", { type: "text", value: editedFields.kayitNumarasi || '', readOnly: true, className: "w-full p-2 border border-slate-300 rounded-md bg-slate-100" })
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Kayıt No (Değiştirilemez):"),
+                            React.createElement("input", { type: "text", value: editedFields.kayitNumarasi || '', readOnly: true, className: "w-full p-2 border border-slate-300 rounded-md bg-slate-100 text-sm" })
                         ),
                         React.createElement("div", null,
-                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block" }, "Yakıt Miktarı (lt):"),
-                            React.createElement("input", { type: "text", name: "fuelAmount", value: String(editedFields.fuelAmount).replace('.', ','), onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md" })
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Tarih:"),
+                            React.createElement("input", { type: "date", name: "date", value: editedFields.date || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm" })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Personel Adı:"),
+                            React.createElement("input", { type: "text", name: "personnelName", value: editedFields.personnelName || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm" })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Meslek:"),
+                            React.createElement("select", { name: "jobTitle", value: editedFields.jobTitle || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white text-sm" },
+                                React.createElement("option", { value: "Pilot" }, "Pilot"),
+                                React.createElement("option", { value: "Uçuş Teknisyeni" }, "Uçuş Teknisyeni"),
+                                React.createElement("option", { value: "Şoför" }, "Şoför")
+                            )
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Konum:"),
+                            React.createElement("input", { type: "text", name: "location", value: editedFields.location || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm" })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Makbuz No:"),
+                            React.createElement("input", { type: "text", name: "receiptNumber", value: editedFields.receiptNumber || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm" })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Kuyruk No:"),
+                            React.createElement("input", { type: "text", name: "tailNumber", value: editedFields.tailNumber || '', onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm" })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Yakıt Miktarı (lt):"),
+                            React.createElement("input", { type: "text", name: "fuelAmount", value: String(editedFields.fuelAmount).replace('.', ','), onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm font-bold" })
                         )
                     ),
-                    React.createElement("div", { className: "flex justify-end gap-3 pt-4" },
+                    React.createElement("div", { className: "flex justify-end gap-3 pt-4 border-t" },
                         React.createElement("button", { onClick: () => setIsEditModalOpen(false), className: "py-2 px-5 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300" }, "İptal"),
-                        React.createElement("button", { onClick: handleEditRequestSubmit, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700" }, "Talep Oluştur")
+                        React.createElement("button", { onClick: handleEditRequestSubmit, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700 shadow-md" }, "Talep Oluştur")
                     )
                 )
             )
@@ -1410,7 +1386,6 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
     );
 };
 
-// From components/AdminLogin.tsx
 const AdminLogin = ({ onLoginSuccess, showMessage, adminCredentials }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -1462,7 +1437,6 @@ const AdminLogin = ({ onLoginSuccess, showMessage, adminCredentials }) => {
     );
 };
 
-// From components/AircraftDataManagement.tsx
 const AircraftDataManagement = ({ aircraftData, onUpdate, showMessage }) => {
     const [newAircraft, setNewAircraft] = useState({ aircraftType: '', tailNumber: '', company: '', callSign: '' });
     const [editingAircraft, setEditingAircraft] = useState(null);
@@ -1602,7 +1576,6 @@ const AircraftDataManagement = ({ aircraftData, onUpdate, showMessage }) => {
     );
 };
 
-// From components/TankerDataManagement.tsx
 const TankerDataManagement = ({ tankerData, onUpdate, showMessage }) => {
     const [newTanker, setNewTanker] = useState({ plate: '', region: '', company: '', capacity: '' });
     const [editingTanker, setEditingTanker] = useState(null);
@@ -1719,7 +1692,6 @@ const TankerDataManagement = ({ tankerData, onUpdate, showMessage }) => {
     );
 };
 
-// From components/ApprovalRequests.tsx
 const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests, onHandleEditApproval, onHandlePersonnelApproval }) => {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [selectedPersonnelRequest, setSelectedPersonnelRequest] = useState(null);
@@ -1778,7 +1750,6 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
     };
 
     const renderChanges = (original, changes) => {
-        // Obje kontrolü
         const originalObj = typeof original === 'string' ? JSON.parse(original) : original;
         const changesObj = typeof changes === 'string' ? JSON.parse(changes) : changes;
 
@@ -1936,7 +1907,6 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
     );
 };
 
-// From components/PersonnelDataManagement.tsx
 const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
     const [newPersonnel, setNewPersonnel] = useState({ name: '', job: '', company: '' });
     const [editingPersonnel, setEditingPersonnel] = useState(null);
@@ -2051,7 +2021,7 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
             React.createElement(Modal, { isOpen: !!editingPersonnel, onClose: () => setEditingPersonnel(null), title: "Personel Düzenle" },
                 editingPersonnel && (
                     React.createElement("div", { className: "space-y-4" },
-                        React.createElement("input", { type: "text", value: editingPersonnel.name, onChange: e => setEditingPersonnel(p => p && { ...p, name: e.target.value }), className: "w-full p-2 border rounded", placeholder: "Adı Soyadı" }),
+                        React.createElement("input", { type: "text", name: "name", value: editingPersonnel.name, onChange: e => setEditingPersonnel(p => p && { ...p, name: e.target.value }), className: "w-full p-2 border rounded", placeholder: "Adı Soyadı" }),
                         React.createElement(AutocompleteSelect, {
                             options: [{value: 'Pilot', label: 'Pilot'}, {value: 'Uçuş Teknisyeni', label: 'Uçuş Teknisyeni'}, {value: 'Şoför', label: 'Şoför'}],
                             value: editingPersonnel.job,
@@ -2059,7 +2029,7 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
                             placeholder: "Meslek Seçiniz",
                             className: "w-full p-2 border rounded"
                         }),
-                        React.createElement("input", { type: "text", value: editingPersonnel.company || '', onChange: e => setEditingPersonnel(p => p && {...p, company: e.target.value}), className: "w-full p-2 border rounded", placeholder: "Kurum" }),
+                        React.createElement("input", { type: "text", name: "company", value: editingPersonnel.company || '', onChange: e => setEditingPersonnel(p => p && {...p, company: e.target.value}), className: "w-full p-2 border rounded", placeholder: "Kurum" }),
                         React.createElement("div", { className: "flex justify-end gap-3 pt-2" },
                             React.createElement("button", { onClick: () => setEditingPersonnel(null), className: "py-2 px-5 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300" }, "İptal"),
                             React.createElement("button", { onClick: handleUpdatePersonnel, className: "py-2 px-5 bg-ogm-green-600 text-white rounded-lg font-semibold hover:bg-ogm-green-700" }, "Kaydet")
@@ -2071,7 +2041,6 @@ const PersonnelDataManagement = ({ personnelList, onUpdate, showMessage }) => {
     );
 };
 
-// From components/AirportDataManagement.tsx
 const AirportDataManagement = ({ airportList, onUpdate, showMessage }) => {
     const [newAirport, setNewAirport] = useState({ name: '', type: 'Sivil' });
     const [editingAirport, setEditingAirport] = useState(null);
@@ -2203,7 +2172,6 @@ const AirportDataManagement = ({ airportList, onUpdate, showMessage }) => {
     );
 };
 
-// From components/UserManagement.tsx
 const UserManagement = ({ adminCredentials, onAddUser, onDeleteUser, showMessage }) => {
     const [newUser, setNewUser] = useState({ name: '', username: '', password: '' });
 
@@ -2276,7 +2244,6 @@ const UserManagement = ({ adminCredentials, onAddUser, onDeleteUser, showMessage
     );
 };
 
-// From components/RecordManagement.tsx
 const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tankerData, airportList, showMessage, onDeleteRecord, undoBuffer, setUndoBuffer, conflictData, setConflictData }) => {
     const [filters, setFilters] = useState({
         startDate: '',
@@ -2297,7 +2264,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [hasSearched, setHasSearched] = useState(false);
     
-    // Patch: Admin Edit Modal states
     const [isAdminEditModalOpen, setIsAdminEditModalOpen] = useState(false);
     const [adminEditingRecord, setAdminEditingRecord] = useState(null);
 
@@ -2327,7 +2293,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             if (filters.tailNumber && record.tailNumber !== filters.tailNumber) return false;
             if (filters.receiptNumber && !(record.receiptNumber || '').toLocaleLowerCase(trLocale).includes(filters.receiptNumber.toLocaleLowerCase(trLocale))) return false;
             
-            // New Filters
             if (!searchVal(record.personnelName, filters.personnelName)) return false;
             if (filters.jobTitle && record.jobTitle !== filters.jobTitle) return false;
             if (filters.locationType && record.locationType !== filters.locationType) return false;
@@ -2341,7 +2306,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             return true;
         });
         
-        // --- Duplicate Detection Engine ---
         const seenMap = new Map();
         const filteredAfterDeduplication = [];
         filtered.forEach(rec => {
@@ -2414,55 +2378,37 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         }
     };
 
-    // REDIRECTION LOGIC FOR BUTTONS IN TABLE
     const getReceiptLink = (record) => {
-
-    const isOGM = (val) => {
-        const comp = String(val || "").toLowerCase();
-        return comp.includes("ogm") || comp.includes("orman");
-    };
-
-    if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
-
-        const plate = record.tankerPlate || record.fillingTankerPlate;
-        const tanker = tankerData.find(t => t.plate === plate);
-
-        if (isOGM(tanker?.company)) {
-            return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+        if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
+            const plate = record.recordType === 'tankerDolum' ? record.tankerPlate : record.fillingTankerPlate;
+            const tanker = tankerData.find(t => t.plate === plate);
+            const comp = (tanker?.company || "").toLowerCase().trim();
+            
+            if (comp === "ogm" || comp === "orman") {
+                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+            } else {
+                return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
+            }
         }
-
-        return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
-    }
-
-    if (record.recordType === 'personnel') {
-
-        const title = String(record.jobTitle || "").toLowerCase();
-
-        // ATIK YAKIT / TANKER ŞOFÖR
-        if (title.includes("şof")) {
-
-            if (isOGM(record.company)) {
+        if (record.recordType === 'personnel') {
+            if (record.jobTitle === 'Şoför') {
                 return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
             }
 
-            return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
-        }
-
-        if (record.tailNumber) {
-
-            const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
-
-            if (isOGM(aircraft?.company)) {
-                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+            if (record.tailNumber) {
+                const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
+                if (!aircraft) return null;
+                const comp = (aircraft.company || "").toLowerCase().trim();
+                
+                if (comp === "ogm" || comp === "orman") {
+                    return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+                } else {
+                    return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
+                }
             }
-
-            return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
         }
-    }
-
-    return null;
-};
-
+        return null;
+    };
 
     const handleExport = (format) => {
         if (displayedRecords.length === 0) {
@@ -2567,7 +2513,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                 )
                             )) : React.createElement("tr", null, React.createElement("td", { colSpan: 12, className: "text-center p-6 text-slate-500" }, hasSearched ? "Veri bulunamadı." : "Arama yapmak için filtreleri kullanın."))
                         ),
-                        // Patch: Toplam yakıt tablonun en altında (tfoot) gösterilir
                         displayedRecords.length > 0 && React.createElement("tfoot", null,
                             React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
                                 React.createElement("td", { colSpan: 10, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
@@ -2651,7 +2596,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
     );
 };
 
-// From components/TankerTakip.tsx
 const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
     const [selectedPlate, setSelectedPlate] = useState('');
     const [report, setReport] = useState(null);
@@ -2673,7 +2617,6 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
         let totalWaste = 0;
 
         fuelRecords.forEach(record => {
-            // General Inflow
             if (record.recordType === 'tankerDolum' && record.tankerPlate === selectedPlate) {
                 totalIn += record.fuelAmount;
             }
@@ -2681,7 +2624,6 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
                 totalIn += record.fuelAmount;
             }
             
-            // Outflow and Waste (Driver check)
             if (record.recordType === 'personnel' && record.locationType === 'Tanker' && record.location === selectedPlate) {
                 if (record.jobTitle === 'Şoför') {
                     totalWaste += record.fuelAmount;
@@ -2758,7 +2700,6 @@ const TankerTakip = ({ tankerData, fuelRecords, showMessage }) => {
     );
 };
 
-// From components/FileUpload.tsx
 const FileUpload = ({ onFileUpload }) => {
     const [isDragging, setIsDragging] = useState(false);
     
@@ -2813,7 +2754,6 @@ const FileUpload = ({ onFileUpload }) => {
     );
 };
 
-// From components/CriticalErrorDisplay.tsx
 const CriticalErrorDisplay = ({ message }) => {
     const parts = message.split('\n\n');
     const title = parts.length > 0 ? parts[0] : 'Kritik Hata';
@@ -2845,7 +2785,6 @@ const CriticalErrorDisplay = ({ message }) => {
     );
 };
 
-// From components/ReceiptBookManagement.tsx
 const ReceiptBookManagement = ({ receiptBooks, tankerData, onUpdate, showMessage }) => {
     const [newBook, setNewBook] = useState({ tankerPlate: '', startSerial: '', endSerial: '' });
     
@@ -2947,13 +2886,11 @@ const ReceiptBookManagement = ({ receiptBooks, tankerData, onUpdate, showMessage
     );
 };
 
-
-// From components/RegionReceiptTracking.tsx
 const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMessage }) => {
     const today = new Date();
     const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, 0, 1).toISOString().split('T')[0]; // Jan 1st
-    const lastDay = new Date(currentYear, 11, 31).toISOString().split('T')[0]; // Dec 31st
+    const firstDay = new Date(currentYear, 0, 1).toISOString().split('T')[0]; 
+    const lastDay = new Date(currentYear, 11, 31).toISOString().split('T')[0]; 
 
     const [dateRange, setDateRange] = useState({ start: firstDay, end: lastDay });
     const [tankerPlateFilter, setTankerPlateFilter] = useState('');
@@ -2972,7 +2909,6 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
 
         const filteredRecords = fuelRecords.filter(r => r.date >= dateRange.start && r.date <= dateRange.end);
         
-        // Kayıtları plakaya göre önceden grupluyoruz
         const recordsByPlate = {};
 
         filteredRecords.forEach(record => {
@@ -2980,7 +2916,6 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
             if (matches) {
                 for (const m of matches) {
                     const val = parseInt(m, 10);
-                    // Bu seri numarası hangi plakaya tanımlı?
                     const actualOwnerBook = receiptBooks.find(b => val >= b.startSerial && val <= b.endSerial);
                     if (actualOwnerBook) {
                         const ownerPlate = actualOwnerBook.tankerPlate;
@@ -3265,7 +3200,6 @@ const RegionReceiptTracking = ({ tankerData, fuelRecords, receiptBooks, showMess
 };
 
 
-// From components/AdminPanel.tsx
 const NavButton = ({ label, children, badge, onClick, isActive }) => (
     React.createElement("button", {
         onClick: onClick,
@@ -3296,11 +3230,9 @@ const AdminPanel = (props) => {
     const [activeModule, setActiveModule] = useState('dataEntry');
     const [activeDataEntryView, setActiveDataEntryView] = useState('bulkUpload');
 
-    // Örnek Excel Şablonu İndirme Fonksiyonu
     const downloadSampleTemplate = () => {
         const wb = XLSX.utils.book_new();
         
-        // Örnek veriler ve sayfalar
         const sheetsData = {
             "hava aracı verisi": [
                 ["Kuyruk No", "Firma", "Tip", "Çağrı Kodu"],
@@ -3352,7 +3284,7 @@ const AdminPanel = (props) => {
 
                 workbook.SheetNames.forEach(sheetName => {
                     const worksheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet); // Basit obje okuma
+                    const json = XLSX.utils.sheet_to_json(worksheet); 
 
                     const normalizedSheetName = sheetName.trim().toLowerCase();
 
@@ -3498,21 +3430,20 @@ const AdminPanel = (props) => {
     );
 };
 
-// From App.tsx
 const normalizeSheetRecord = (rec, allPersonnel) => {
     const recordType = rec['Kayıt Tipi'];
     if (!recordType) return null;
 
     const normalized = {
         id: `sheet-${rec['Makbuz Numarası'] || ''}-${Math.random()}`,
-        kayitNumarasi: rec['Kayıt No'] || generateRecordNumber(), // Fallback for older data
+        kayitNumarasi: rec['Kayıt No'] || generateRecordNumber(), 
         date: parseSheetDate(rec['Tarih']),
         receiptNumber: rec['Makbuz Numarası'],
         receiptType: rec['Makbuz Tipi'] || '',
         fuelAmount: Number(parseFloat(String(rec['Yakıt Miktarı (lt)'] || '0').replace(',', '.'))) || 0,
     };
     
-    if (!normalized.date) return null; // Skip records with unparseable dates
+    if (!normalized.date) return null; 
 
     if (recordType === 'Hava Aracı İkmal') {
         normalized.recordType = 'personnel';
@@ -3589,7 +3520,6 @@ const App = () => {
     const [airportList, setAirportList] = useState(INITIAL_AIRPORT_LIST);
     const [receiptBooks, setReceiptBooks] = useState([]);
     
-    // Patch: Undo & Conflict Buffer States
     const [undoBuffer, setUndoBuffer] = useState(null);
     const [conflictData, setConflictData] = useState(null);
 
@@ -3643,7 +3573,6 @@ const App = () => {
         } catch (error) {
             console.error(`"postData" hatası (eylem: "${action}"):`, error);
             if (error.message && (error.message.includes('SPREADSHEET_ID') || error.message.includes('E-Tablo Açılamadı'))) {
-                 // handled by main useEffect
             } else if (error.message.includes('Failed to fetch')) {
                  showMessage('Ağ Hatası: Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edin.', 'error');
             } else {
@@ -3741,11 +3670,9 @@ const App = () => {
 
     const onDeleteRecord = async (id, bypassUndo = false) => {
         const newList = fuelRecords.filter(r => r.id !== id);
-        // Patch: Using safe handleBulkUpdate instead of failing onDeleteRecord action
         await handleBulkUpdate({ fuelRecords: newList });
     };
 
-    // Patch: Enhanced handleAddRecord with duplicate flow
     const handleAddRecord = async (record, bypass = false) => {
         if (!bypass) {
             const rNo = String(record.receiptNumber).trim();
@@ -3755,12 +3682,9 @@ const App = () => {
             if (duplicate) {
                 const existingAmt = Number(parseFloat(String(duplicate.fuelAmount).replace(',', '.')));
                 if (existingAmt === amt) {
-                    // Patch: Same Receipt + Same Amount -> Auto Replace & Undo Display
                     await onDeleteRecord(duplicate.id, true);
                     setUndoBuffer(duplicate);
-                    // newList will be handled by the next lines
                 } else {
-                    // Patch: Same Receipt + Diff Amount -> Open Conflict Selection UI
                     setConflictData({ existing: duplicate, incoming: record });
                     return;
                 }
@@ -3918,8 +3842,7 @@ const App = () => {
                     )
                 )
             ),
-            // Patch: Undo Modal (Matching Screenshot)
-            undoBuffer && React.createElement(Modal, { isOpen: true, onClose: () => setUndoBuffer(null), title: "⚠️ Otomatik mükerrer kayıt silindi" }, 
+            activeView === VIEW_ADMIN_PANEL && undoBuffer && React.createElement(Modal, { isOpen: true, onClose: () => setUndoBuffer(null), title: "⚠️ Otomatik mükerrer kayıt silindi" }, 
                React.createElement("div", { className: "space-y-6" },
                   React.createElement("div", { className: "bg-slate-50 p-4 rounded-lg border border-slate-200" },
                      React.createElement("p", { className: "mb-3 font-semibold text-slate-700" }, "Sistem bu kaydı mükerrer olduğu için otomatik olarak sildi:"),
@@ -3935,8 +3858,7 @@ const App = () => {
                   )
                )
             ),
-            // Patch: Conflict Modal (Matching Screenshot)
-            conflictData && React.createElement(Modal, { isOpen: true, onClose: () => setConflictData(null), title: "⚠️ Makbuz Numarası Aynı Fakat Yakıt Farklı" },
+            activeView === VIEW_ADMIN_PANEL && conflictData && React.createElement(Modal, { isOpen: true, onClose: () => setConflictData(null), title: "⚠️ Makbuz Numarası Aynı Fakat Yakıt Farklı" },
                React.createElement("div", { className: "space-y-4" },
                   React.createElement("p", { className: "text-slate-600 text-sm" }, "Lütfen silinecek kaydı seçiniz:"),
                   React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
@@ -3970,4 +3892,3 @@ root.render(React.createElement(App));
     </script>
   </body>
 </html>
- 
