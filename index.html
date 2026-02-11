@@ -345,18 +345,6 @@ const exportTableToExcel = (tableId, filename) => {
         td.style.border = '1px solid #cbd5e1';
     });
 
-    // Patch: Export total to Excel
-    const body = clone.querySelector('tbody');
-    if (body) {
-        const rows = Array.from(body.querySelectorAll('tr'));
-        const total = rows.reduce((acc, row) => {
-            const valStr = row.cells[row.cells.length - (tableId.includes('makbuz') ? 2 : 1)]?.innerText || '0';
-            const val = parseFloat(valStr.replace(',', '.')) || 0;
-            return acc + val;
-        }, 0);
-        
-    }
-
     const html = clone.outerHTML;
     const blob = new Blob(['\ufeff', html], {
         type: 'application/vnd.ms-excel'
@@ -663,15 +651,14 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
     }, [formData.personnelId, personnelList, isManualPersonnelEntry]);
 
     const personnelCompany = (isManualPersonnelEntry ? manualPersonnel.company : selectedPersonnelObject?.company || "").toLowerCase().trim();
-    const isPersonnelOGM = personnelCompany.includes('ogm') || personnelCompany.includes('orman');
+    // Patch: Manual entry is always Non-OGM. If manual, isPersonnelOGM must be false regardless of what they type in company field.
+    const isPersonnelOGM = !isManualPersonnelEntry && (personnelCompany.includes('ogm') || personnelCompany.includes('orman'));
 
     const showReceiptTypeSelection = useMemo(() => {
         if (entryType !== 'personnel') return false;
-        const companyValue = (selectedPersonnelObject?.company || (isManualPersonnelEntry ? manualPersonnel.company : "")).toUpperCase().trim();
-        const isPilotOrTech = finalJobTitle === 'Pilot' || finalJobTitle === 'Uçuş Teknisyeni';
-        if (companyValue === 'OGM') return false;
-        return isPilotOrTech;
-    }, [entryType, selectedPersonnelObject, finalJobTitle, isManualPersonnelEntry, manualPersonnel.company]);
+        if (isPersonnelOGM) return false;
+        return finalJobTitle === 'Pilot' || finalJobTitle === 'Uçuş Teknisyeni';
+    }, [entryType, isPersonnelOGM, finalJobTitle]);
 
     useEffect(() => {
         setCurrentStep(1);
@@ -853,6 +840,23 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
 
+            // REDIRECTION LOGIC UPDATE
+            let redirectUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ"; // Default OGM
+            if (!isPersonnelOGM) {
+               if (isMilitaryLocation && (finalJobTitleForSubmit === 'Pilot' || finalJobTitleForSubmit === 'Uçuş Teknisyeni')) {
+                  redirectUrl = "https://bulut.ogm.gov.tr/kiralikaskeri";
+               } else {
+                  redirectUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
+               }
+            }
+            try {
+                await onAddRecord(recordToSave);
+                onStartRedirection(redirectUrl);
+            } catch (error) {
+                setIsSubmitting(false);
+                showMessage('Kayıt gönderilemedi.', 'error');
+            }
+
         } else if (entryType === 'tankerDolum' || entryType === 'tankerTransfer') {
              if (entryType === 'tankerDolum') {
                 recordToSave = {
@@ -882,15 +886,13 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
                     receiptType: "-"
                 };
              }
-        }
-
-        try {
-            await onAddRecord(recordToSave);
-            onStartRedirection("https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ");
-        } catch (error) {
-            console.error("Failed to submit record:", error);
-            showMessage('Kayıt gönderilemedi.', 'error');
-            setIsSubmitting(false);
+             try {
+                await onAddRecord(recordToSave);
+                onStartRedirection("https://bulut.ogm.gov.tr/KIRALIKTANKER");
+            } catch (error) {
+                setIsSubmitting(false);
+                showMessage('Kayıt gönderilemedi.', 'error');
+            }
         }
     };
 
@@ -2325,7 +2327,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             if (filters.tailNumber && record.tailNumber !== filters.tailNumber) return false;
             if (filters.receiptNumber && !(record.receiptNumber || '').toLocaleLowerCase(trLocale).includes(filters.receiptNumber.toLocaleLowerCase(trLocale))) return false;
             
-            // New Filter Logic
+            // New Filters
             if (!searchVal(record.personnelName, filters.personnelName)) return false;
             if (filters.jobTitle && record.jobTitle !== filters.jobTitle) return false;
             if (filters.locationType && record.locationType !== filters.locationType) return false;
@@ -2412,27 +2414,35 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
         }
     };
 
+    // REDIRECTION LOGIC FOR BUTTONS IN TABLE
     const getReceiptLink = (record) => {
         if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
             const plate = record.recordType === 'tankerDolum' ? record.tankerPlate : record.fillingTankerPlate;
             const tanker = tankerData.find(t => t.plate === plate);
-            const comp = tanker ? (tanker.company || "") : "";
+            const comp = (tanker?.company || "").toLowerCase().trim();
             
-            if (comp === "OGM" || comp === "ogm" || comp === "Ogm") {
+            if (comp === "ogm" || comp === "orman") {
                 return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
             } else {
                 return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
             }
         }
-        if (record.recordType === 'personnel' && record.tailNumber) {
-            const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
-            if (!aircraft) return null;
-            const companyName = aircraft.company?.toLowerCase().trim() || '';
-            const ogmCompanies = ['ogm', 'orman'];
-            if (ogmCompanies.some(ogmComp => companyName.includes(ogmComp))) {
-                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
-            } else {
+        if (record.recordType === 'personnel') {
+            // Waste fuel or Driver entries go to rental link as per request
+            if (record.jobTitle === 'Şoför') {
                 return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
+            }
+
+            if (record.tailNumber) {
+                const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
+                if (!aircraft) return null;
+                const comp = (aircraft.company || "").toLowerCase().trim();
+                
+                if (comp === "ogm" || comp === "orman") {
+                    return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+                } else {
+                    return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
+                }
             }
         }
         return null;
@@ -2475,7 +2485,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                     ),
                     React.createElement("input", { type: "text", name: "location", value: filters.location, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Konum Ara" }),
                     React.createElement("input", { type: "text", name: "receiptNumber", value: filters.receiptNumber, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Makbuz No Girin" }),
-                    React.createElement("select", { name: "receiptType", value: filters.receiptType, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white" },
+                    React.createElement("select", { name: "receiptType", value: filters.receiptType, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white text-xs" },
                         React.createElement("option", { value: "" }, "Makbuz Tipi Filtrele"),
                         React.createElement("option", { value: "Yangın maksatlı kalkış öncesi ve sonrası ikmal" }, "Yangın maksatlı kalkış öncesi ve sonrası ikmal"),
                         React.createElement("option", { value: "Atık yakıt makbuzu" }, "Atık yakıt makbuzu"),
@@ -2541,6 +2551,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                 )
                             )) : React.createElement("tr", null, React.createElement("td", { colSpan: 12, className: "text-center p-6 text-slate-500" }, hasSearched ? "Veri bulunamadı." : "Arama yapmak için filtreleri kullanın."))
                         ),
+                        // Patch: Toplam yakıt tablonun en altında (tfoot) gösterilir
                         displayedRecords.length > 0 && React.createElement("tfoot", null,
                             React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
                                 React.createElement("td", { colSpan: 10, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
@@ -2555,7 +2566,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                 adminEditingRecord && React.createElement("div", { className: "space-y-4" },
                     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                         React.createElement("div", null,
-                            React.createElement("label", { className: "block text-xs font-bold text-slate-500" }, "Kayıt Numarası (Oluşturma Tarihi)"),
+                            React.createElement("label", { className: "block text-xs font-bold text-slate-500" }, "Kayıt Numarası"),
                             React.createElement("input", { type: "text", name: "kayitNumarasi", value: adminEditingRecord.kayitNumarasi, onChange: handleAdminEditChange, className: "w-full p-2 border rounded" })
                         ),
                         React.createElement("div", null,
@@ -2568,7 +2579,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         ),
                         React.createElement("div", null,
                             React.createElement("label", { className: "block text-xs font-bold text-slate-500" }, "Mesleği"),
-                            React.createElement("select", { name: "jobTitle", value: adminEditingRecord.jobTitle, onChange: handleAdminEditChange, className: "w-full p-2 border rounded bg-white" },
+                            React.createElement("select", { name: "jobTitle", value: adminEditingRecord.jobTitle, onChange: handleAdminEditChange, className: "w-full p-2 border rounded bg-white text-sm" },
                                 React.createElement("option", { value: "Pilot" }, "Pilot"),
                                 React.createElement("option", { value: "Uçuş Teknisyeni" }, "Uçuş Teknisyeni"),
                                 React.createElement("option", { value: "Şoför" }, "Şoför")
@@ -2576,7 +2587,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         ),
                         React.createElement("div", null,
                             React.createElement("label", { className: "block text-xs font-bold text-slate-500" }, "İkmal Tipi"),
-                            React.createElement("select", { name: "locationType", value: adminEditingRecord.locationType, onChange: handleAdminEditChange, className: "w-full p-2 border rounded bg-white" },
+                            React.createElement("select", { name: "locationType", value: adminEditingRecord.locationType, onChange: handleAdminEditChange, className: "w-full p-2 border rounded bg-white text-sm" },
                                 React.createElement("option", { value: "Tanker" }, "Tanker"),
                                 React.createElement("option", { value: "Hava Limanı/Alanı" }, "Hava Limanı/Alanı"),
                                 React.createElement("option", { value: "Tanker Dolum" }, "Tanker Dolum"),
@@ -3943,3 +3954,4 @@ root.render(React.createElement(App));
     </script>
   </body>
 </html>
+ 
