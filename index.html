@@ -2416,37 +2416,53 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
 
     // REDIRECTION LOGIC FOR BUTTONS IN TABLE
     const getReceiptLink = (record) => {
-        if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
-            const plate = record.recordType === 'tankerDolum' ? record.tankerPlate : record.fillingTankerPlate;
-            const tanker = tankerData.find(t => t.plate === plate);
-            const comp = (tanker?.company || "").toLowerCase().trim();
-            
-            if (comp === "ogm" || comp === "orman") {
-                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
-            } else {
-                return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
-            }
+
+    const isOGM = (val) => {
+        const comp = String(val || "").toLowerCase();
+        return comp.includes("ogm") || comp.includes("orman");
+    };
+
+    if (record.recordType === 'tankerDolum' || record.recordType === 'tankerTransfer') {
+
+        const plate = record.tankerPlate || record.fillingTankerPlate;
+        const tanker = tankerData.find(t => t.plate === plate);
+
+        if (isOGM(tanker?.company)) {
+            return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
         }
-        if (record.recordType === 'personnel') {
-            // Waste fuel or Driver entries go to rental link as per request
-            if (record.jobTitle === 'Şoför') {
+
+        return "https://bulut.ogm.gov.tr/TANKERYAKITT1";
+    }
+
+    if (record.recordType === 'personnel') {
+
+        const title = String(record.jobTitle || "").toLowerCase();
+
+        // ATIK YAKIT / TANKER ŞOFÖR
+        if (title.includes("şof")) {
+
+            if (isOGM(record.company)) {
                 return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
             }
 
-            if (record.tailNumber) {
-                const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
-                if (!aircraft) return null;
-                const comp = (aircraft.company || "").toLowerCase().trim();
-                
-                if (comp === "ogm" || comp === "orman") {
-                    return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
-                } else {
-                    return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
-                }
-            }
+            return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
         }
-        return null;
-    };
+
+        if (record.tailNumber) {
+
+            const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
+
+            if (isOGM(aircraft?.company)) {
+                return "https://bulut.ogm.gov.tr/OGMMAKBUZ";
+            }
+
+            return "https://bulut.ogm.gov.tr/KIRALIKYAKIT1";
+        }
+    }
+
+    return null;
+};
+
 
     const handleExport = (format) => {
         if (displayedRecords.length === 0) {
