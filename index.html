@@ -197,6 +197,23 @@ const RECORD_TYPE_TRANSLATIONS = {
     tankerTransfer: 'Tanker Transfer'
 };
 
+const getCurrentMonthDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const formatDate = (d) => {
+        return d.getFullYear() + '-' + 
+               String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(d.getDate()).padStart(2, '0');
+    };
+    
+    return {
+        startDate: formatDate(firstDay),
+        endDate: formatDate(lastDay)
+    };
+};
+
 
 const INITIAL_PERSONNEL_LIST = [
     { id: 'p1', name: 'Ahmet Yılmaz', job: 'Pilot' },
@@ -1171,7 +1188,16 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
 };
 
 const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, airportList, onAddApprovalRequest, showMessage, updateFuelRecords, undoBuffer, setUndoBuffer, conflictData, setConflictData, onDeleteRecord }) => {
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', personnelId: '', tailNumber: '', tankerPlate: '', kayitNumarasi: '' });
+    const initialDates = getCurrentMonthDates();
+    const [filters, setFilters] = useState({ 
+        startDate: initialDates.startDate, 
+        endDate: initialDates.endDate, 
+        personnelId: '', 
+        tailNumber: '', 
+        tankerPlate: '', 
+        kayitNumarasi: '',
+        ikmalTipi: ''
+    });
     const [displayedRecords, setDisplayedRecords] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1201,9 +1227,21 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                 record.personnelId === filters.personnelId ||
                 (selectedPersonnelForFilter && !record.personnelId && record.personnelName === selectedPersonnelForFilter.name);
             const matchesTailNumber = !filters.tailNumber || record.tailNumber === filters.tailNumber;
+            
+            // İkmal Tipi Filtresi
+            let matchesIkmalTipi = true;
+            if (filters.ikmalTipi === 'Tanker') {
+                matchesIkmalTipi = record.locationType === 'Tanker';
+            } else if (filters.ikmalTipi === 'Havalimanı') {
+                matchesIkmalTipi = record.locationType === 'Hava Limanı/Alanı';
+            } else if (filters.ikmalTipi === 'Tanker Dolum') {
+                matchesIkmalTipi = record.recordType === 'tankerDolum';
+            }
+
             const matchesTankerPlate = !filters.tankerPlate || (record.locationType === 'Tanker' && record.location === filters.tankerPlate) || (record.tankerPlate === filters.tankerPlate) || (record.receivingTankerPlate === filters.tankerPlate) || (record.fillingTankerPlate === filters.tankerPlate);
             const matchesKayitNumarasi = !filters.kayitNumarasi || (record.kayitNumarasi && String(record.kayitNumarasi).includes(filters.kayitNumarasi));
-            return matchesDate && matchesPersonnel && matchesTailNumber && matchesTankerPlate && matchesKayitNumarasi;
+            
+            return matchesDate && matchesPersonnel && matchesTailNumber && matchesIkmalTipi && matchesTankerPlate && matchesKayitNumarasi;
         });
 
         setDisplayedRecords(results);
@@ -1211,7 +1249,15 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
     };
 
     const handleFilterChange = (e) => {
-        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setFilters(prev => {
+            const newFilters = { ...prev, [name]: value };
+            // Eğer ikmal tipi değişirse ve tanker değilse plakayı temizle
+            if (name === 'ikmalTipi' && value !== 'Tanker' && value !== 'Tanker Dolum') {
+                newFilters.tankerPlate = '';
+            }
+            return newFilters;
+        });
     };
 
     const handleRowDoubleClick = (record) => {
@@ -1265,6 +1311,29 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                 React.createElement("div", null,
                     React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Başlangıç Tarihi:"),
                     React.createElement("input", { type: "date", name: "startDate", value: filters.startDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" })
+                ),
+                React.createElement("div", null,
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Bitiş Tarihi:"),
+                    React.createElement("input", { type: "date", name: "endDate", value: filters.endDate, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md" })
+                ),
+                React.createElement("div", null,
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "İkmal Tipi:"),
+                    React.createElement("select", { name: "ikmalTipi", value: filters.ikmalTipi, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white" },
+                        React.createElement("option", { value: "" }, "Tümü"),
+                        React.createElement("option", { value: "Tanker" }, "Tanker"),
+                        React.createElement("option", { value: "Havalimanı" }, "Havalimanı"),
+                        React.createElement("option", { value: "Tanker Dolum" }, "Tanker Dolum")
+                    )
+                ),
+                (filters.ikmalTipi === 'Tanker' || filters.ikmalTipi === 'Tanker Dolum') && React.createElement("div", null,
+                    React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Tanker Plakası:"),
+                    React.createElement(AutocompleteSelect, {
+                        options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
+                        value: filters.tankerPlate,
+                        onChange: (value) => setFilters(prev => ({ ...prev, tankerPlate: value })),
+                        placeholder: "Plaka Ara...",
+                        className: "w-full p-2 border border-slate-300 rounded-md text-base"
+                    })
                 ),
                 React.createElement("div", null,
                     React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block text-sm" }, "Personel:"),
@@ -2245,9 +2314,10 @@ const UserManagement = ({ adminCredentials, onAddUser, onDeleteUser, showMessage
 };
 
 const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tankerData, airportList, showMessage, onDeleteRecord, undoBuffer, setUndoBuffer, conflictData, setConflictData }) => {
+    const initialDates = getCurrentMonthDates();
     const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
+        startDate: initialDates.startDate,
+        endDate: initialDates.endDate,
         tailNumber: '',
         aircraftType: '',
         company: '',
@@ -2295,7 +2365,24 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             
             if (!searchVal(record.personnelName, filters.personnelName)) return false;
             if (filters.jobTitle && record.jobTitle !== filters.jobTitle) return false;
-            if (filters.locationType && record.locationType !== filters.locationType) return false;
+            
+            // İkmal Tipi Filtresi (Makbuz Yönetimi için özel)
+            if (filters.locationType) {
+                if (filters.locationType === 'Tanker') {
+                    if (record.locationType !== 'Tanker') return false;
+                } else if (filters.locationType === 'Hava Limanı/Alanı') {
+                    if (record.locationType !== 'Hava Limanı/Alanı') return false;
+                } else if (filters.locationType === 'Havalimanı + Dolum') {
+                    if (record.locationType !== 'Hava Limanı/Alanı' && record.recordType !== 'tankerDolum') return false;
+                }
+            }
+
+            // Hava Aracı Tipi Filtresi
+            if (filters.aircraftType) {
+                const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
+                if (!aircraft || aircraft.aircraftType !== filters.aircraftType) return false;
+            }
+
             if (!searchVal(record.location, filters.location)) return false;
             if (filters.receiptType && record.receiptType !== filters.receiptType) return false;
 
@@ -2443,7 +2530,12 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                     React.createElement("select", { name: "locationType", value: filters.locationType, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white" },
                         React.createElement("option", { value: "" }, "İkmal Tipi Filtrele"),
                         React.createElement("option", { value: "Tanker" }, "Tanker"),
-                        React.createElement("option", { value: "Hava Limanı/Alanı" }, "Hava Limanı/Alanı")
+                        React.createElement("option", { value: "Hava Limanı/Alanı" }, "Havalimanı"),
+                        React.createElement("option", { value: "Havalimanı + Dolum" }, "Havalimanı + Dolum")
+                    ),
+                    React.createElement("select", { name: "aircraftType", value: filters.aircraftType, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white" },
+                        React.createElement("option", { value: "" }, "Hava Aracı Tipi Filtrele"),
+                        filterOptions.aircraftTypes.map(type => React.createElement("option", { key: type, value: type }, type))
                     ),
                     React.createElement("input", { type: "text", name: "location", value: filters.location, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Konum Ara" }),
                     React.createElement("input", { type: "text", name: "receiptNumber", value: filters.receiptNumber, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Makbuz No Girin" }),
