@@ -128,6 +128,19 @@
       }
     }
   </script>
+  <script type="importmap">
+{
+  "imports": {
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "@google/genai": "https://esm.sh/@google/genai@1.40.0"
+  }
+}
+</script>
 </head>
   <body style="background-image: url('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXRlNWZpNWQwajl5dnMzbnFieGJ6bmZpOW54NGg5YmFxY3NhbHQwbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/zsMlIC5Hduwe4IfYQS/giphy.gif');" class="bg-cover bg-center bg-fixed">
     <div id="root"></div>
@@ -843,9 +856,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
             }
             try {
                 await onAddRecord(recordToSave);
-                if (formData.locationType === 'Tanker') {
-                    alert('Lütfen tanker dolumdan alınan yakıt analiz raporunu da eklemeyi unutmayınız!');
-                }
                 onStartRedirection(redirectUrl);
             } catch (error) {
                 setIsSubmitting(false);
@@ -883,9 +893,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, o
              }
              try {
                 await onAddRecord(recordToSave);
-                if (entryType === 'tankerDolum') {
-                    alert('Lütfen tanker dolumdan alınan yakıt analiz raporunu da eklemeyi unutmayınız!');
-                }
                 onStartRedirection("https://bulut.ogm.gov.tr/KIRALIKTANKER");
             } catch (error) {
                 setIsSubmitting(false);
@@ -2356,22 +2363,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
             if (filters.tailNumber && record.tailNumber !== filters.tailNumber) return false;
             if (filters.receiptNumber && !(record.receiptNumber || '').toLocaleLowerCase(trLocale).includes(filters.receiptNumber.toLocaleLowerCase(trLocale))) return false;
             
-            // Firma Filtresi
-            if (filters.company) {
-                let recCompany = "";
-                if (record.tailNumber) {
-                    const aircraft = aircraftData.find(a => a.tailNumber === record.tailNumber);
-                    if (aircraft) recCompany = aircraft.company;
-                } else {
-                    const plate = record.tankerPlate || record.receivingTankerPlate || record.fillingTankerPlate;
-                    if (plate) {
-                        const tanker = tankerData.find(t => t.plate === plate);
-                        if (tanker) recCompany = tanker.company;
-                    }
-                }
-                if (recCompany !== filters.company) return false;
-            }
-
             if (!searchVal(record.personnelName, filters.personnelName)) return false;
             if (filters.jobTitle && record.jobTitle !== filters.jobTitle) return false;
             
@@ -2546,10 +2537,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         React.createElement("option", { value: "" }, "Hava Aracı Tipi Filtrele"),
                         filterOptions.aircraftTypes.map(type => React.createElement("option", { key: type, value: type }, type))
                     ),
-                    React.createElement("select", { name: "company", value: filters.company, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white" },
-                        React.createElement("option", { value: "" }, "Firma Filtrele"),
-                        filterOptions.companies.map(comp => React.createElement("option", { key: comp, value: comp }, comp))
-                    ),
                     React.createElement("input", { type: "text", name: "location", value: filters.location, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Konum Ara" }),
                     React.createElement("input", { type: "text", name: "receiptNumber", value: filters.receiptNumber, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md", placeholder: "Makbuz No Girin" }),
                     React.createElement("select", { name: "receiptType", value: filters.receiptType, onChange: handleFilterChange, className: "w-full p-2 border border-slate-300 rounded-md bg-white text-xs" },
@@ -2583,7 +2570,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         React.createElement("thead", null,
                             React.createElement("tr", null,
                                 React.createElement("th", { "data-exclude": "true", className: "w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === displayedRecords.length && displayedRecords.length > 0 })),
-                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Kart Numarası', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
+                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
                                     React.createElement("th", { key: header }, header)
                                 ))
                             )
@@ -2603,7 +2590,6 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                     React.createElement("td", { className: "text-left" }, record.jobTitle || '-'),
                                     React.createElement("td", { className: "text-left" }, record.locationType || '--'),
                                     React.createElement("td", { className: "text-left" }, record.location || '--'),
-                                    React.createElement("td", { className: "text-left" }, record.cardNumber || '-'),
                                     React.createElement("td", { className: "text-left" }, record.receiptNumber || '--'),
                                     React.createElement("td", { className: "text-left" }, record.receiptType || '-'),
                                     React.createElement("td", { className: "text-left" }, record.tailNumber || '-'),
@@ -2617,11 +2603,11 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                         })()
                                     )
                                 )
-                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 13, className: "text-center p-6 text-slate-500" }, hasSearched ? "Veri bulunamadı." : "Arama yapmak için filtreleri kullanın."))
+                            )) : React.createElement("tr", null, React.createElement("td", { colSpan: 12, className: "text-center p-6 text-slate-500" }, hasSearched ? "Veri bulunamadı." : "Arama yapmak için filtreleri kullanın."))
                         ),
                         displayedRecords.length > 0 && React.createElement("tfoot", null,
                             React.createElement("tr", { className: "bg-ogm-green-50 font-bold" },
-                                React.createElement("td", { colSpan: 11, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
+                                React.createElement("td", { colSpan: 10, className: "p-3 text-right text-ogm-green-800" }, "TOPLAM YAKIT:"),
                                 React.createElement("td", { className: "p-3 text-right text-ogm-green-900" }, filteredTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), " LT"),
                                 React.createElement("td", null)
                             )
@@ -3395,46 +3381,42 @@ const AdminPanel = (props) => {
                     const normalizedSheetName = sheetName.trim().toLowerCase();
 
                     if (normalizedSheetName === 'hava aracı verisi') {
-                        const batchId = Date.now();
                         const newAircrafts = json.map((row, index) => {
                             const tail = String(row["Kuyruk No"] || "").trim().toUpperCase();
                             if (!tail) return null;
-                            return { id: `file-ac-${batchId}-${index}-${Math.random().toString(36).substr(2, 5)}`, tailNumber: tail, company: String(row["Firma"] || "").trim(), aircraftType: String(row["Tip"] || "").trim(), callSign: String(row["Çağrı Kodu"] || "").trim() };
+                            return { id: `file-${Date.now()}-${index}`, tailNumber: tail, company: String(row["Firma"] || "").trim(), aircraftType: String(row["Tip"] || "").trim(), callSign: String(row["Çağrı Kodu"] || "").trim() };
                         }).filter(Boolean);
                         if (newAircrafts.length > 0) {
                             updates.aircraftData = [...props.aircraftData, ...newAircrafts];
                             successMessages.push(`${newAircrafts.length} hava aracı`);
                         }
                     } else if (normalizedSheetName === 'tanker verisi') {
-                         const batchId = Date.now();
                          const newTankers = json.map((row, index) => {
                             const plate = String(row["Plaka"] || "").trim().toUpperCase();
                             if(!plate) return null;
-                            return { id: `file-tk-${batchId}-${index}-${Math.random().toString(36).substr(2, 5)}`, plate: plate, region: String(row["Bölge"] || "").trim(), company: String(row["Firma"] || "").trim(), capacity: parseFloat(row["Kapasite"]) || 0 };
+                            return { id: `file-tanker-${Date.now()}-${index}`, plate: plate, region: String(row["Bölge"] || "").trim(), company: String(row["Firma"] || "").trim(), capacity: parseFloat(row["Kapasite"]) || 0 };
                         }).filter(Boolean);
                         if (newTankers.length > 0) {
                             updates.tankerData = [...props.tankerData, ...newTankers];
                             successMessages.push(`${newTankers.length} tanker`);
                         }
                     } else if (normalizedSheetName === 'personel verisi') {
-                        const batchId = Date.now();
                         const newPersonnelList = json.map((row, index) => {
                             const name = String(row["Adı Soyadı"] || "").trim();
                             if(!name) return null;
-                            return { id: `file-ps-${batchId}-${index}-${Math.random().toString(36).substr(2, 5)}`, name: name, job: String(row["Mesleği"] || "Pilot").trim(), company: String(row["Kurum"] || "").trim() };
+                            return { id: `file-personnel-${Date.now()}-${index}`, name: name, job: String(row["Mesleği"] || "Pilot").trim(), company: String(row["Kurum"] || "").trim() };
                         }).filter(Boolean);
                         if (newPersonnelList.length > 0) {
                             updates.personnelList = [...props.personnelList, ...newPersonnelList];
                             successMessages.push(`${newPersonnelList.length} personel`);
                         }
                     } else if (normalizedSheetName === 'koçan verisi') {
-                        const batchId = Date.now();
                         const newBooks = json.map((row, index) => {
                              const start = parseInt(row["Başlangıç No"]);
                              const end = parseInt(row["Bitiş No"]);
                              if(isNaN(start) || isNaN(end)) return null;
                             return { 
-                                id: `file-rb-${batchId}-${index}-${Math.random().toString(36).substr(2, 5)}`, 
+                                id: `file-book-${Date.now()}-${index}`, 
                                 tankerPlate: String(row["Tanker Plakası"] || "").trim().toUpperCase(), 
                                 startSerial: start,
                                 endSerial: end
