@@ -1220,7 +1220,7 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
                                     React.createElement(AutocompleteSelect, {
                                         options: availableDolums.map(d => ({ 
                                             value: d.id, 
-                                            label: `${formatDisplayDateOnly(d.date)} - ${d.location} - ${d.fuelAmount} lt (Makbuz: ${d.receiptNumber})` 
+                                            label: `${formatDisplayDate(d.kayitNumarasi)} - ${d.location} - ${d.fuelAmount} lt (Makbuz: ${d.receiptNumber})` 
                                         })),
                                         value: formData.relatedDolumId,
                                         onChange: (value) => handleGenericSelect('relatedDolumId', value),
@@ -1515,7 +1515,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                     React.createElement("table", { id: "search-records-table", className: "excel-table" },
                         React.createElement("thead", { className: "bg-slate-100" },
                             React.createElement("tr", null,
-                                ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz No', 'Kuyruk No', 'Yakıt (lt)'].map(header => (
+                                ['Kayıt No', 'Tarih', 'Personel', 'Meslek', 'Konum', 'Makbuz No', 'Kuyruk No', 'İlgili Dolum ID', 'Yakıt (lt)'].map(header => (
                                     React.createElement("th", { key: header }, header)
                                 ))
                             )
@@ -1535,6 +1535,7 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                                         React.createElement("td", { className: "p-3" }, record.location || '--'),
                                         React.createElement("td", { className: "p-3" }, record.receiptNumber || '--'),
                                         React.createElement("td", { className: "p-3" }, record.tailNumber || '-'),
+                                        React.createElement("td", { className: "p-3 text-xs font-mono" }, record.relatedDolumId ? formatDisplayDate(record.relatedDolumId) : '-'),
                                         React.createElement("td", { 
                                             className: `p-3 text-right` 
                                         }, Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }))
@@ -1596,6 +1597,43 @@ const SearchRecords = ({ fuelRecords, personnelList, aircraftData, tankerData, a
                         React.createElement("div", null,
                             React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "Yakıt Miktarı (lt):"),
                             React.createElement("input", { type: "text", name: "fuelAmount", value: String(editedFields.fuelAmount).replace('.', ','), onChange: handleEditChange, className: "w-full p-2 border border-slate-300 rounded-md text-sm font-bold" })
+                        ),
+                        editedFields.recordType === 'tankerTransfer' && React.createElement("div", { className: "md:col-span-2 border-l-4 border-ogm-green-500 pl-3 bg-slate-50/50 p-2 rounded" },
+                            React.createElement("label", { className: "font-semibold text-slate-600 mb-1 block text-xs" }, "İlgili Dolum Kaydı Bağlantısı (Manuel):"),
+                            React.createElement("div", { className: "space-y-2" },
+                                React.createElement("input", { 
+                                    type: "text", 
+                                    name: "relatedDolumId", 
+                                    value: editedFields.relatedDolumId || '', 
+                                    onChange: handleEditChange, 
+                                    className: "w-full p-2 border border-slate-300 rounded-md text-xs font-mono bg-white",
+                                    placeholder: "Kayıt ID'sini veya Tarihini Yapıştırın" 
+                                }),
+                                (() => {
+                                    const lookupId = editedFields.relatedDolumId;
+                                    if (!lookupId) return null;
+                                    const found = fuelRecords.find(r => 
+                                        r.recordType === 'tankerDolum' && (
+                                            r.id === lookupId || 
+                                            r.kayitNumarasi === lookupId || 
+                                            (r.kayitNumarasi && formatDisplayDate(r.kayitNumarasi).trim() === String(lookupId).trim())
+                                        )
+                                    );
+                                    return found ? (
+                                        React.createElement("div", { className: "p-2 bg-green-50 border border-green-200 rounded text-[10px] text-green-700" },
+                                            React.createElement("p", { className: "font-bold mb-1" }, "✅ Eşleşen Dolum Kaydı Bulundu"),
+                                            React.createElement("p", null, `Tanker: ${found.tankerPlate} | Tarih: ${formatDisplayDateOnly(found.date)} | Miktar: ${found.fuelAmount}lt`),
+                                            found.id !== lookupId && React.createElement("button", {
+                                                type: "button",
+                                                onClick: () => handleEditChange({ target: { name: 'relatedDolumId', value: found.id } }),
+                                                className: "mt-1 text-ogm-green-700 font-bold underline"
+                                            }, "Sistem ID'sine Dönüştür")
+                                        )
+                                    ) : (
+                                        React.createElement("div", { className: "p-1 text-[10px] text-red-500 italic" }, "⚠ Eşleşen dolum kaydı bulunamadı.")
+                                    );
+                                })()
+                            )
                         )
                     ),
                     React.createElement("div", { className: "flex justify-end gap-3 pt-4 border-t" },
@@ -2786,7 +2824,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                         React.createElement("thead", null,
                             React.createElement("tr", null,
                                 React.createElement("th", { "data-exclude": "true", className: "w-10" }, React.createElement("input", { type: "checkbox", onChange: handleSelectAll, checked: selectedIds.size === displayedRecords.length && displayedRecords.length > 0 })),
-                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Kart Numarası', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
+                                ['Kayıt No', 'Tarih', 'Personel Adı', 'Mesleği', 'İkmal Tipi', 'Konum', 'Kart Numarası', 'Makbuz Numarası', 'Makbuz Tipi', 'Kuyruk No', 'İlgili Dolum ID', 'Yakıt (lt)', 'Makbuz Linki'].map(header => (
                                     React.createElement("th", { key: header }, header)
                                 ))
                             )
@@ -2814,6 +2852,7 @@ const RecordManagement = ({ fuelRecords, onUpdateFuelRecords, aircraftData, tank
                                     React.createElement("td", { className: "text-left" }, record.receiptNumber || '--'),
                                     React.createElement("td", { className: "text-left" }, record.receiptType || '-'),
                                     React.createElement("td", { className: "text-left" }, record.tailNumber || '-'),
+                                    React.createElement("td", { className: "text-left text-xs font-mono" }, record.relatedDolumId ? formatDisplayDate(record.relatedDolumId) : '-'),
                                     React.createElement("td", { 
                                         className: `text-right ${displayedRecords.some(r => r.id !== record.id && String(r.receiptNumber).trim() === String(record.receiptNumber).trim() && r.fuelAmount !== record.fuelAmount && String(record.receiptNumber).trim() !== '-' && String(record.receiptNumber).trim() !== '--') ? 'blink-conflict' : ''}` 
                                     }, Number(record.fuelAmount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })),
@@ -3902,9 +3941,10 @@ const normalizeSheetRecord = (rec, allPersonnel) => {
     const recordType = rec['Kayıt Tipi'];
     if (!recordType) return null;
 
+    const kayitNumarasi = rec['Kayıt No'] || generateRecordNumber();
     const normalized = {
-        id: `sheet-${rec['Makbuz Numarası'] || ''}-${Math.random()}`,
-        kayitNumarasi: rec['Kayıt No'] || generateRecordNumber(), 
+        id: kayitNumarasi,
+        kayitNumarasi: kayitNumarasi, 
         date: parseSheetDate(rec['Tarih']),
         receiptNumber: rec['Makbuz Numarası'],
         receiptType: rec['Makbuz Tipi'] || '',
