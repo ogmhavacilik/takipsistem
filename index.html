@@ -183,6 +183,7 @@ const FIELD_TRANSLATIONS = {
     airport: 'Hava Limanı',
     receivingTankerPlate: 'Yakıtı Alan Tanker',
     fillingTankerPlate: 'Yakıtı Veren Tanker',
+    relatedDolumId: 'İlgili Dolum ID',
 
     // Request Specific
     requesterName: 'Talep Eden',
@@ -720,8 +721,11 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
         if (entryType === 'personnel' && formData.locationType === 'Hava Limanı/Alanı' && formData.location) {
             return airportList.find(a => a.name === formData.location);
         }
+        if (entryType === 'tankerDolum' && formData.airport) {
+            return airportList.find(a => a.name === formData.airport);
+        }
         return null;
-    }, [formData.location, formData.locationType, airportList, entryType]);
+    }, [formData.location, formData.locationType, formData.airport, airportList, entryType]);
 
     const isMilitaryLocation = selectedAirport?.type === 'Askeri';
 
@@ -884,13 +888,12 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
 
-            finalRedirectUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ"; 
-            if (!isPersonnelOGM) {
-               if (isMilitaryLocation && (finalJobTitleForSubmit === 'Pilot' || finalJobTitleForSubmit === 'Uçuş Teknisyeni')) {
-                  finalRedirectUrl = "https://bulut.ogm.gov.tr/kiralikaskeri";
-               } else {
-                  finalRedirectUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
-               }
+            if (isMilitaryLocation) {
+                finalRedirectUrl = "https://bulut.ogm.gov.tr/kiralikaskeri";
+            } else if (isPersonnelOGM) {
+                finalRedirectUrl = "https://bulut.ogm.gov.tr/OGMKURUMMAKBUZ"; 
+            } else {
+                finalRedirectUrl = "https://bulut.ogm.gov.tr/OGMKIRALIKHAVAMAKBUZ";
             }
         } else if (entryType === 'tankerDolum' || entryType === 'tankerTransfer') {
              if (entryType === 'tankerDolum') {
@@ -922,7 +925,12 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
                     receiptType: "-"
                 };
              }
-             finalRedirectUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
+             
+             if (isMilitaryLocation) {
+                 finalRedirectUrl = "https://bulut.ogm.gov.tr/kiralikaskeri";
+             } else {
+                 finalRedirectUrl = "https://bulut.ogm.gov.tr/KIRALIKTANKER";
+             }
         }
 
         if (needsTankerAnalysisWarning) {
@@ -2017,8 +2025,17 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
             React.createElement("div", { className: "grid grid-cols-1 gap-y-2 text-sm" },
                 Object.keys(changesObj).map(key => {
                     const translatedKey = FIELD_TRANSLATIONS[key] || key;
-                    const originalValue = key === 'date' && originalObj.date ? formatDisplayDateOnly(originalObj.date) : String(originalObj[key] ?? '-');
-                    const changedValue = key === 'date' && changesObj.date ? formatDisplayDateOnly(changesObj.date) : String(changesObj[key] ?? '-');
+                    let originalValue = String(originalObj[key] ?? '-');
+                    let changedValue = String(changesObj[key] ?? '-');
+
+                    if (key === 'date') {
+                        if (originalObj.date) originalValue = formatDisplayDateOnly(originalObj.date);
+                        if (changesObj.date) changedValue = formatDisplayDateOnly(changesObj.date);
+                    } else if (key === 'relatedDolumId' || key === 'kayitNumarasi') {
+                        if (originalObj[key]) originalValue = formatDisplayDate(originalObj[key]);
+                        if (changesObj[key]) changedValue = formatDisplayDate(changesObj[key]);
+                    }
+
                     return (
                         React.createElement("div", { key: key, className: "grid grid-cols-[auto,1fr] gap-x-2 items-center" },
                             React.createElement("div", { className: "text-slate-500 font-semibold" }, translatedKey, ":"),
@@ -2057,6 +2074,9 @@ const ApprovalRequestsComponent = ({ approvalRequests, personnelApprovalRequests
                 ),
                 recordObj.fuelAmount != null && (
                     React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.fuelAmount, ":"), React.createElement("span", { className: "text-slate-800" }, recordObj.fuelAmount))
+                ),
+                recordObj.relatedDolumId && (
+                    React.createElement(React.Fragment, null, React.createElement("span", { className: "font-semibold text-slate-500" }, FIELD_TRANSLATIONS.relatedDolumId, ":"), React.createElement("span", { className: "text-slate-800" }, formatDisplayDate(recordObj.relatedDolumId)))
                 )
             )
         );
