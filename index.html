@@ -784,9 +784,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
                         }
                         return formData.date && formData.personnelId;
                     case 2: 
-                        if (formData.locationType === 'Tanker') {
-                            return formData.location && selectedDolumDate && formData.relatedDolumId;
-                        }
                         return formData.locationType && formData.location;
                     case 3: 
                         if (isMilitaryLocation) return !!formData.cardNumber;
@@ -890,7 +887,6 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
                 kayitNumarasi,
                 receiptNumber: formattedReceiptNumber,
                 recordType: 'personnel',
-                relatedDolumId: formData.locationType === 'Tanker' ? formData.relatedDolumId : null,
                 receiptType: (isPersonnelOGM ? "-" : (showReceiptTypeSelection ? formData.receiptType : "-"))
             };
             if (!isMilitaryLocation) delete recordToSave.cardNumber;
@@ -1049,57 +1045,14 @@ const FuelEntryForm = ({ personnelList, aircraftData, tankerData, airportList, f
                             React.createElement("p", { className: "text-blue-600 font-bold italic text-sm p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm" }, "** Şöför adı seçildiği için İkmal öncesi yakıt kontrol esnasında çıkan atık yakıt girilebilir")
                         )
                     ),
-                    formData.locationType === 'Tanker' && React.createElement("div", { className: "space-y-4" },
-                        React.createElement("div", { className: "form-group" },
-                            React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "Atık Çıkan Konum (Tanker Plakası):" : "Konum (Tanker Plakası):"),
-                            React.createElement(AutocompleteSelect, {
-                                options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
-                                value: formData.location,
-                                onChange: (value) => handleGenericSelect('location', value),
-                                placeholder: "Tanker Plakası Seçiniz veya Arayınız"
-                            })
-                        ),
-                        React.createElement("div", { className: "p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4 shadow-sm" },
-                            React.createElement("div", { className: "flex items-start gap-3" },
-                                 React.createElement("div", { className: "bg-blue-600 text-white p-1 rounded-full flex-shrink-0 mt-0.5" },
-                                    React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" },
-                                        React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" })
-                                    )
-                                 ),
-                                 React.createElement("p", { className: "text-sm text-blue-700 font-bold" }, "Analiz Takibi İçin Tanker Dolumunu Seçin")
-                            ),
-                            React.createElement("div", { className: "grid grid-cols-1 gap-3 pt-2" },
-                                React.createElement("div", { className: "form-group" },
-                                    React.createElement("label", { className: "font-bold text-slate-700 mb-1 block text-xs" }, "1. DOLUM TARİHİ:"),
-                                    React.createElement(InputField, { 
-                                        type: "date", 
-                                        value: selectedDolumDate, 
-                                        onChange: (e) => setSelectedDolumDate(e.target.value), 
-                                        required: true,
-                                        className: "border-blue-300 focus:ring-blue-500 py-2"
-                                    })
-                                ),
-                                React.createElement("div", { className: "form-group" },
-                                    React.createElement("label", { className: "font-bold text-slate-700 mb-1 block text-xs" }, "2. İLGİLİ DOLUM KAYDI:"),
-                                    availableDolums.length > 0 ? 
-                                        React.createElement(AutocompleteSelect, {
-                                            options: availableDolums.map(d => ({ 
-                                                value: d.id, 
-                                                label: `${formatDisplayDate(d.kayitNumarasi)} - ${d.fuelAmount} lt (Makbuz: ${d.receiptNumber})` 
-                                            })),
-                                            value: formData.relatedDolumId,
-                                            onChange: (value) => handleGenericSelect('relatedDolumId', value),
-                                            placeholder: "Aşağıdan dolum kaydı seçiniz",
-                                            className: "border-blue-300 focus:ring-blue-500 py-2 text-sm"
-                                        }) :
-                                        React.createElement("div", { className: "p-2 bg-white border border-blue-200 rounded-lg text-[10px] text-red-500 font-bold" }, 
-                                            selectedDolumDate 
-                                            ? "⚠ Seçilen tarihte dolum kaydı bulunamadı!"
-                                            : "Lütfen dolum tarihini seçin."
-                                        )
-                                )
-                            )
-                        )
+                    formData.locationType === 'Tanker' && React.createElement("div", { className: "form-group" },
+                        React.createElement("label", { className: "font-semibold text-slate-600 mb-2 block" }, finalJobTitle === 'Şoför' ? "Atık Çıkan Konum (Tanker Plakası):" : "Konum (Tanker Plakası):"),
+                        React.createElement(AutocompleteSelect, {
+                            options: tankerData.map(t => ({ value: t.plate, label: t.plate })),
+                            value: formData.location,
+                            onChange: (value) => handleGenericSelect('location', value),
+                            placeholder: "Tanker Plakası Seçiniz veya Arayınız"
+                        })
                     ),
                     formData.locationType === 'Hava Limanı/Alanı' && React.createElement(React.Fragment, null,
                         !isPersonnelOGM && React.createElement("p", { className: "text-red-600 font-semibold text-xs mb-2 p-2 bg-red-50 border border-red-200 rounded-lg" }, "Lütfen karşınızdaki ikmal personeli \"Askeri Personel\" ise hava limanı seçiminde parantez içinde (Askeri) yazdığından mutlaka emin olunuz. Eğer emin değilseniz ya da mevcut askeri hava limanı listede yok ise yöneticinize bildiriniz."),
