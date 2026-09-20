@@ -1,0 +1,5 @@
+{
+  "name": "Yakıt Takip Sistemi",
+  "description": "Orman Genel Müdürlüğü Yangın Söndürme Hava Araçları Yakıt İkmal Takip Sistemi",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
